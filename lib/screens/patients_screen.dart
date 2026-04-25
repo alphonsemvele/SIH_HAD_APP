@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'patient_detail_screen.dart';
+import 'add_patient_screen.dart';
+import '../services/patient_service.dart';
 
 class PatientsScreen extends StatefulWidget {
   const PatientsScreen({super.key});
@@ -11,8 +13,12 @@ class PatientsScreen extends StatefulWidget {
 class _PatientsScreenState extends State<PatientsScreen> {
   String _selectedFilter = 'Tous';
   final _searchController = TextEditingController();
+  final PatientService _patientService = PatientService();
+  List<Map<String, dynamic>> _patients = [];
+  bool _isLoading = false;
 
-  final List<Map<String, dynamic>> _patients = [
+  // Données de test pour le développement
+  final List<Map<String, dynamic>> _mockPatients = [
     {
       'nom': 'Jean-Pierre Nguemo',
       'age': 67,
@@ -95,7 +101,179 @@ class _PatientsScreenState extends State<PatientsScreen> {
     },
   ];
 
-  List<Map<String, dynamic>> get _filteredPatients {
+  @override
+  void initState() {
+    super.initState();
+    _loadPatients();
+  }
+
+  Future<void> _loadPatients() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final result = await _patientService.getPatients();
+      
+      if (result['success']) {
+        final data = result['data'];
+        List<dynamic> rawList = [];
+        
+        // Structure: { "patients": { "data": [...], "current_page": 1, ... }, "stats": {...} }
+        if (data is Map && data['patients'] != null && data['patients']['data'] != null) {
+          rawList = data['patients']['data'] as List;
+        } else if (data is Map && data['data'] != null) {
+          rawList = data['data'] as List;
+        } else if (data is List) {
+          rawList = data;
+        }
+        
+        setState(() {
+          _patients = rawList
+              .map((item) => _mapPatientFromApi(Map<String, dynamic>.from(item)))
+              .toList();
+        });
+        
+        print('✅ ${_patients.length} patients chargés');
+      } else {
+        // En cas d'erreur, utiliser les données mock pour le développement
+        setState(() {
+          _patients = _mockPatients;
+        });
+        _showErrorSnackBar('Utilisation des données de test: ${result['message']}');
+      }
+    } catch (e) {
+      print('❌ $e');
+      // En cas d'erreur, utiliser les données mock pour le développement
+      setState(() {
+        _patients = _mockPatients;
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshPatients() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final result = await _patientService.getPatients();
+      
+      if (result['success']) {
+        final data = result['data'];
+        List<dynamic> rawList = [];
+        
+        // Structure: { "patients": { "data": [...], "current_page": 1, ... }, "stats": {...} }
+        if (data is Map && data['patients'] != null && data['patients']['data'] != null) {
+          rawList = data['patients']['data'] as List;
+        } else if (data is Map && data['data'] != null) {
+          rawList = data['data'] as List;
+        } else if (data is List) {
+          rawList = data;
+        }
+        
+        setState(() {
+          _patients = rawList
+              .map((item) => _mapPatientFromApi(Map<String, dynamic>.from(item)))
+              .toList();
+        });
+        
+        print('✅ ${_patients.length} patients rechargés');
+      } else {
+        // En cas d'erreur, utiliser les données mock pour le développement
+        setState(() {
+          _patients = _mockPatients;
+        });
+      }
+    } catch (e) {
+      print('❌ Erreur refresh: $e');
+      // En cas d'erreur, utiliser les données mock pour le développement
+      setState(() {
+        _patients = _mockPatients;
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFF4433),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _mapPatientFromApi(Map<String, dynamic> p) {
+  // Calculer l'âge depuis date_naissance (format ISO)
+  int age = 0;
+  if (p['date_naissance'] != null) {
+    try {
+      final dob = DateTime.parse(p['date_naissance']);
+      final now = DateTime.now();
+      age = now.year - dob.year;
+      if (now.month < dob.month ||
+          (now.month == dob.month && now.day < dob.day)) {
+        age--;
+      }
+    } catch (_) {}
+  }
+
+  // Nom complet : prénom + nom
+  final nomComplet = '${p['prenom'] ?? ''} ${p['nom'] ?? ''}'.trim();
+
+  // Extraire le diagnostic depuis le champ notes (format "Diagnostic: X | Traitement: Y")
+  String diagnostic = 'Pas de diagnostic';
+  final notes = p['notes']?.toString() ?? '';
+  if (notes.contains('Diagnostic:')) {
+    final match = RegExp(r'Diagnostic:\s*([^|\n]+)').firstMatch(notes);
+    if (match != null) diagnostic = match.group(1)!.trim();
+  } else if (notes.isNotEmpty) {
+    diagnostic = notes;
+  }
+
+  // Mapper le statut Laravel vers la priorité de l'UI
+  String priorite;
+  switch (p['statut']) {
+    case 'Urgence':
+      priorite = 'Critique';
+      break;
+    case 'Hospitalisé':
+      priorite = 'Surveillance';
+      break;
+    default:
+      priorite = 'Normal';
+  }
+
+  return {
+    'id': p['id'],
+    'nom': nomComplet.isEmpty ? 'Sans nom' : nomComplet,
+    'age': age,
+    'sexe': p['sexe'] ?? 'M',
+    'quartier': p['quartier'] ?? 'Non renseigné',
+    'diagnostic': diagnostic,
+    'priorite': priorite,
+    'telephone': p['telephone'] ?? '',
+    'derniereVisite': _formatDate(p['updated_at']),
+  };
+}
+
+String _formatDate(String? isoDate) {
+  if (isoDate == null) return 'Jamais';
+  try {
+    final date = DateTime.parse(isoDate);
+    final now = DateTime.now();
+    final diff = now.difference(date).inDays;
+    if (diff == 0) return "Aujourd'hui";
+    if (diff == 1) return 'Hier';
+    if (diff < 7) return 'Il y a $diff jours';
+    return '${date.day}/${date.month}/${date.year}';
+  } catch (_) {
+    return 'Date inconnue';
+  }
+}
+
+List<Map<String, dynamic>> get _filteredPatients {
     if (_selectedFilter == 'Tous') return _patients;
     return _patients.where((p) => p['priorite'] == _selectedFilter).toList();
   }
@@ -111,15 +289,26 @@ class _PatientsScreenState extends State<PatientsScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
-          Container(
-            margin: const EdgeInsets.only(right: 16),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFF12121A),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFF1E1E2A)),
+          IconButton(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const AddPatientScreen()),
+              );
+              if (result == true) {
+                _refreshPatients();
+              }
+            },
+            icon: Container(
+              margin: const EdgeInsets.only(right: 16),
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: const Color(0xFF12121A),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF1E1E2A)),
+              ),
+              child: const Icon(Icons.person_add, color: Colors.white, size: 20),
             ),
-            child: const Icon(Icons.person_add, color: Colors.white, size: 20),
           ),
         ],
       ),
@@ -198,14 +387,24 @@ class _PatientsScreenState extends State<PatientsScreen> {
 
           // Liste des patients
           Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: _filteredPatients.length,
-              itemBuilder: (context, index) {
-                final patient = _filteredPatients[index];
-                return _buildPatientCard(context, patient);
-              },
-            ),
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFFF4433),
+                    ),
+                  )
+                : RefreshIndicator(
+                    onRefresh: _refreshPatients,
+                    color: const Color(0xFFFF4433),
+                    child: ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _filteredPatients.length,
+                      itemBuilder: (context, index) {
+                        final patient = _filteredPatients[index];
+                        return _buildPatientCard(context, patient);
+                      },
+                    ),
+                  ),
           ),
         ],
       ),

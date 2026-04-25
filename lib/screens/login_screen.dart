@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'main_layout.dart';
+import '../services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,19 +10,72 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _matriculeController = TextEditingController(text: 'INF-2024-089');
-  final _passwordController = TextEditingController(text: '••••••••');
+  final _emailController = TextEditingController(text: 'anne.ngo@had.com');
+  final _passwordController = TextEditingController(text: 'password');
   bool _obscurePassword = true;
   bool _isLoading = false;
+  final AuthService _authService = AuthService();
 
-  void _login() {
+  Future<void> _login() async {
+    if (_emailController.text.trim().isEmpty || _passwordController.text.trim().isEmpty) {
+      _showErrorSnackBar('Veuillez remplir tous les champs');
+      return;
+    }
+
     setState(() => _isLoading = true);
-    Future.delayed(const Duration(seconds: 1), () {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const MainLayout()),
+
+    try {
+      final result = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
-    });
+
+      if (result['success']) {
+        _showSuccessSnackBar('Connexion réussie');
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const MainLayout()),
+        );
+      } else {
+        _showErrorSnackBar(result['message'] ?? 'Erreur lors de la connexion');
+      }
+    } catch (e) {
+      _showErrorSnackBar('Erreur de connexion: $e');
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _showSuccessSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(message),
+          ],
+        ),
+        backgroundColor: const Color(0xFF4CAF50),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const Icon(Icons.error, color: Colors.white),
+            const SizedBox(width: 8),
+            Text(message),
+          ],
+        ),
+        backgroundColor: const Color(0xFFFF4433),
+        duration: const Duration(seconds: 4),
+      ),
+    );
   }
 
   @override
@@ -83,7 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Formulaire
               const Text(
-                'Matricule',
+                'Email',
                 style: TextStyle(
                   color: Colors.white70,
                   fontSize: 14,
@@ -92,12 +146,13 @@ class _LoginScreenState extends State<LoginScreen> {
               ),
               const SizedBox(height: 8),
               TextField(
-                controller: _matriculeController,
+                controller: _emailController,
                 style: const TextStyle(color: Colors.white),
+                keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  hintText: 'INF-XXXX-XXX',
+                  hintText: 'email@exemple.com',
                   hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
-                  prefixIcon: const Icon(Icons.badge_outlined, color: Color(0xFF6B6B7B)),
+                  prefixIcon: const Icon(Icons.email_outlined, color: Color(0xFF6B6B7B)),
                   filled: true,
                   fillColor: const Color(0xFF12121A),
                   border: OutlineInputBorder(
