@@ -17,7 +17,7 @@ class TourneeService {
       } else {
         return {
           'success': false,
-          'message': 'Erreur lors de la récupération des tournées',
+          'message': 'Erreur HTTP ${response.statusCode}: ${response.data['message'] ?? 'Erreur inconnue'}',
         };
       }
     } catch (e) {
@@ -57,16 +57,27 @@ class TourneeService {
     try {
       final response = await _apiService.post(ApiConfig.tournees, data: tourneeData);
       
-      if (response.statusCode == 201) {
+      if (response.statusCode == 201 || response.statusCode == 200) {
         return {
           'success': true,
           'data': response.data,
           'message': 'Tournée créée avec succès',
         };
+      } else if (response.statusCode == 422) {
+        // Erreur de validation
+        String errorMessage = 'Erreur de validation:';
+        final errors = response.data['errors'] ?? {};
+        errors.forEach((field, messages) {
+          errorMessage += '\n• ${messages.join(', ')}';
+        });
+        return {
+          'success': false,
+          'message': errorMessage,
+        };
       } else {
         return {
           'success': false,
-          'message': 'Erreur lors de la création de la tournée',
+          'message': 'Erreur HTTP ${response.statusCode}: ${response.data['message'] ?? 'Erreur inconnue'}',
         };
       }
     } catch (e) {

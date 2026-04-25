@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'tournee_detail_screen.dart';
+import 'add_tournee_screen.dart';
+import '../services/tournee_service.dart';
 
 class TourneesScreen extends StatefulWidget {
   const TourneesScreen({super.key});
@@ -10,11 +12,15 @@ class TourneesScreen extends StatefulWidget {
 
 class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final TourneeService _tourneeService = TourneeService();
+  List<Map<String, dynamic>> _tournees = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadTournees();
   }
 
   @override
@@ -22,6 +28,109 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
     _tabController.dispose();
     super.dispose();
   }
+
+  Future<void> _loadTournees() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final result = await _tourneeService.getTournees();
+      
+      if (result['success']) {
+        final data = result['data'];
+        List<dynamic> rawList = [];
+        
+        // Structure: { "tournees": [...], "stats": {...}, ... }
+        if (data is Map && data['tournees'] != null) {
+          rawList = data['tournees'] as List;
+        } else if (data is List) {
+          rawList = data;
+        }
+        
+        setState(() {
+          _tournees = rawList
+              .map((item) => _mapTourneeFromApi(Map<String, dynamic>.from(item)))
+              .toList();
+        });
+        
+        print('✅ ${_tournees.length} tournées chargées');
+      } else {
+        setState(() {
+          _tournees = _mockTournees;
+        });
+      }
+    } catch (e) {
+      print('❌ Erreur chargement tournées: $e');
+      setState(() {
+        _tournees = _mockTournees;
+      });
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _refreshTournees() async {
+    await _loadTournees();
+  }
+
+  Map<String, dynamic> _mapTourneeFromApi(Map<String, dynamic> t) {
+    // Mapper le statut Laravel vers le statut de l'UI
+    String statut;
+    switch (t['statut']) {
+      case 'en_cours':
+        statut = 'En cours';
+        break;
+      case 'terminee':
+        statut = 'Terminée';
+        break;
+      case 'planifiee':
+        statut = 'Planifiée';
+        break;
+      default:
+        statut = 'Planifiée';
+    }
+
+    return {
+      'id': t['id'],
+      'titre': t['titre'] ?? 'Tournée sans titre',
+      'secteur': t['secteur'] ?? 'Secteur non défini',
+      'heure': '${t['heure_debut_prevue'] ?? '08:00'} - ${t['heure_fin_prevue'] ?? '12:00'}',
+      'statut': statut,
+      'patients': t['patients_total'] ?? 0,
+      'visites': t['patients_vus'] ?? 0,
+      'soignant': t['soignant']?['name'] ?? 'Non assigné',
+      'service': t['service']?['nom'] ?? 'Non défini',
+      'date': t['date'] ?? DateTime.now().toIso8601String().split('T')[0],
+    };
+  }
+
+  
+  // Données de test pour le développement
+  final List<Map<String, dynamic>> _mockTournees = [
+    {
+      'id': 1,
+      'titre': 'Tournée du Matin',
+      'secteur': 'Bastos - Nlongkak - Messa',
+      'heure': '08:00 - 12:00',
+      'statut': 'En cours',
+      'patients': 6,
+      'visites': 3,
+      'soignant': 'Dr. Martin',
+      'service': 'Urgences',
+      'date': DateTime.now().toIso8601String().split('T')[0],
+    },
+    {
+      'id': 2,
+      'titre': 'Tournée de l\'Après-midi',
+      'secteur': 'Omnisport - Essos',
+      'heure': '14:00 - 17:00',
+      'statut': 'Planifiée',
+      'patients': 4,
+      'visites': 0,
+      'soignant': 'Dr. Sophie',
+      'service': 'Pédiatrie',
+      'date': DateTime.now().toIso8601String().split('T')[0],
+    },
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +191,15 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddTourneeScreen()),
+          );
+          if (result == true) {
+            _refreshTournees();
+          }
+        },
         backgroundColor: const Color(0xFFFF4433),
         icon: const Icon(Icons.add, color: Colors.white),
         label: const Text('Nouvelle tournée', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
@@ -91,60 +208,52 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
   }
 
   Widget _buildTodayTab() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(20),
+    return RefreshIndicator(
+      onRefresh: _refreshTournees,
+      color: const Color(0xFFFF4433),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Résumé du jour
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF12121A),
-                  const Color(0xFF1E1E2A).withOpacity(0.5),
-                ],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF1E1E2A)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildSummaryItem('Total', '2', Icons.list_alt),
-                Container(width: 1, height: 40, color: const Color(0xFF1E1E2A)),
-                _buildSummaryItem('En cours', '1', Icons.play_arrow),
-                Container(width: 1, height: 40, color: const Color(0xFF1E1E2A)),
-                _buildSummaryItem('Terminées', '0', Icons.check_circle),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Tournée en cours
-          _buildTourneeCard(
-            id: 'TR-2025-001',
-            titre: 'Tournée du Matin',
-            secteur: 'Bastos - Nlongkak - Messa',
-            heure: '08:00 - 12:00',
-            status: 'En cours',
-            patients: 6,
-            visites: 3,
-            isActive: true,
-          ),
-          const SizedBox(height: 16),
-
-          // Tournée planifiée
-          _buildTourneeCard(
-            id: 'TR-2025-002',
-            titre: 'Tournée de l\'Après-midi',
-            secteur: 'Omnisport - Essos',
-            heure: '14:00 - 17:00',
-            status: 'Planifiée',
-            patients: 4,
-            visites: 0,
-            isActive: false,
+          // Liste des tournées
+          Expanded(
+            child: _isLoading
+                ? const Center(
+                    child: CircularProgressIndicator(
+                      color: Color(0xFFFF4433),
+                    ),
+                  )
+                : _tournees.isEmpty
+                    ? ListView(
+                        padding: const EdgeInsets.all(16),
+                        children: [
+                          const SizedBox(height: 80),
+                          Icon(Icons.calendar_today, color: Colors.white.withOpacity(0.3), size: 48),
+                          const SizedBox(height: 12),
+                          Center(
+                            child: Text(
+                              'Aucune tournée aujourd\'hui',
+                              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ],
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.all(16),
+                        itemCount: _tournees.length,
+                        itemBuilder: (context, index) {
+                          final tournee = _tournees[index];
+                          return _buildTourneeCard(
+                            id: tournee['id'].toString(),
+                            titre: tournee['titre'],
+                            secteur: tournee['secteur'],
+                            heure: tournee['heure'],
+                            status: tournee['statut'],
+                            patients: tournee['patients'],
+                            visites: tournee['visites'],
+                            isActive: tournee['statut'] == 'En cours',
+                          );
+                        },
+                      ),
           ),
         ],
       ),
