@@ -11,11 +11,12 @@ class PatientsScreen extends StatefulWidget {
 }
 
 class _PatientsScreenState extends State<PatientsScreen> {
-  String _selectedFilter = 'Tous';
-  final _searchController = TextEditingController();
   final PatientService _patientService = PatientService();
+  final TextEditingController _searchController = TextEditingController();
+  String _selectedFilter = 'Tous';
+  String _searchQuery = '';
   List<Map<String, dynamic>> _patients = [];
-  bool _isLoading = false;
+  bool _isLoading = true;
 
   // Données de test pour le développement
   final List<Map<String, dynamic>> _mockPatients = [
@@ -49,56 +50,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
       'telephone': '+237 655 456 789',
       'derniereVisite': 'Hier, 10:15',
     },
-    {
-      'nom': 'Pauline Essomba',
-      'age': 58,
-      'sexe': 'F',
-      'quartier': 'Omnisport',
-      'diagnostic': 'AVC ischémique - Rééducation',
-      'priorite': 'Normal',
-      'telephone': '+237 678 567 890',
-      'derniereVisite': 'Hier, 14:00',
-    },
-    {
-      'nom': 'François Mbede',
-      'age': 78,
-      'sexe': 'M',
-      'quartier': 'Bastos',
-      'diagnostic': 'Cancer poumon - Soins palliatifs',
-      'priorite': 'Critique',
-      'telephone': '+237 699 678 901',
-      'derniereVisite': 'Il y a 2 jours',
-    },
-    {
-      'nom': 'Jeanne Ateba',
-      'age': 63,
-      'sexe': 'F',
-      'quartier': 'Nlongkak',
-      'diagnostic': 'Post-chirurgie prothèse hanche',
-      'priorite': 'Normal',
-      'telephone': '+237 677 789 012',
-      'derniereVisite': 'Il y a 3 jours',
-    },
-    {
-      'nom': 'Michel Onana',
-      'age': 55,
-      'sexe': 'M',
-      'quartier': 'Essos',
-      'diagnostic': 'Insuffisance rénale - Dialyse',
-      'priorite': 'Surveillance',
-      'telephone': '+237 690 890 123',
-      'derniereVisite': 'Aujourd\'hui, 07:00',
-    },
-    {
-      'nom': 'Christiane Mvondo',
-      'age': 48,
-      'sexe': 'F',
-      'quartier': 'Mokolo',
-      'diagnostic': 'Sclérose en plaques',
-      'priorite': 'Surveillance',
-      'telephone': '+237 655 901 234',
-      'derniereVisite': 'Hier, 16:30',
-    },
   ];
 
   @override
@@ -107,17 +58,22 @@ class _PatientsScreenState extends State<PatientsScreen> {
     _loadPatients();
   }
 
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _loadPatients() async {
     setState(() => _isLoading = true);
-    
+
     try {
       final result = await _patientService.getPatients();
-      
+
       if (result['success']) {
         final data = result['data'];
         List<dynamic> rawList = [];
-        
-        // Structure: { "patients": { "data": [...], "current_page": 1, ... }, "stats": {...} }
+
         if (data is Map && data['patients'] != null && data['patients']['data'] != null) {
           rawList = data['patients']['data'] as List;
         } else if (data is Map && data['data'] != null) {
@@ -125,16 +81,15 @@ class _PatientsScreenState extends State<PatientsScreen> {
         } else if (data is List) {
           rawList = data;
         }
-        
+
         setState(() {
           _patients = rawList
               .map((item) => _mapPatientFromApi(Map<String, dynamic>.from(item)))
               .toList();
         });
-        
+
         print('✅ ${_patients.length} patients chargés');
       } else {
-        // En cas d'erreur, utiliser les données mock pour le développement
         setState(() {
           _patients = _mockPatients;
         });
@@ -142,7 +97,6 @@ class _PatientsScreenState extends State<PatientsScreen> {
       }
     } catch (e) {
       print('❌ $e');
-      // En cas d'erreur, utiliser les données mock pour le développement
       setState(() {
         _patients = _mockPatients;
       });
@@ -152,46 +106,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   Future<void> _refreshPatients() async {
-    setState(() => _isLoading = true);
-    
-    try {
-      final result = await _patientService.getPatients();
-      
-      if (result['success']) {
-        final data = result['data'];
-        List<dynamic> rawList = [];
-        
-        // Structure: { "patients": { "data": [...], "current_page": 1, ... }, "stats": {...} }
-        if (data is Map && data['patients'] != null && data['patients']['data'] != null) {
-          rawList = data['patients']['data'] as List;
-        } else if (data is Map && data['data'] != null) {
-          rawList = data['data'] as List;
-        } else if (data is List) {
-          rawList = data;
-        }
-        
-        setState(() {
-          _patients = rawList
-              .map((item) => _mapPatientFromApi(Map<String, dynamic>.from(item)))
-              .toList();
-        });
-        
-        print('✅ ${_patients.length} patients rechargés');
-      } else {
-        // En cas d'erreur, utiliser les données mock pour le développement
-        setState(() {
-          _patients = _mockPatients;
-        });
-      }
-    } catch (e) {
-      print('❌ Erreur refresh: $e');
-      // En cas d'erreur, utiliser les données mock pour le développement
-      setState(() {
-        _patients = _mockPatients;
-      });
-    } finally {
-      setState(() => _isLoading = false);
-    }
+    await _loadPatients();
   }
 
   void _showErrorSnackBar(String message) {
@@ -205,77 +120,93 @@ class _PatientsScreenState extends State<PatientsScreen> {
   }
 
   Map<String, dynamic> _mapPatientFromApi(Map<String, dynamic> p) {
-  // Calculer l'âge depuis date_naissance (format ISO)
-  int age = 0;
-  if (p['date_naissance'] != null) {
+    int age = 0;
+    if (p['date_naissance'] != null) {
+      try {
+        final dob = DateTime.parse(p['date_naissance']);
+        final now = DateTime.now();
+        age = now.year - dob.year;
+        if (now.month < dob.month ||
+            (now.month == dob.month && now.day < dob.day)) {
+          age--;
+        }
+      } catch (_) {}
+    }
+
+    final nomComplet = '${p['prenom'] ?? ''} ${p['nom'] ?? ''}'.trim();
+
+    String diagnostic = 'Pas de diagnostic';
+    final notes = p['notes']?.toString() ?? '';
+    if (notes.contains('Diagnostic:')) {
+      final match = RegExp(r'Diagnostic:\s*([^|\n]+)').firstMatch(notes);
+      if (match != null) diagnostic = match.group(1)!.trim();
+    } else if (notes.isNotEmpty) {
+      diagnostic = notes;
+    }
+
+    String priorite;
+    switch (p['statut']) {
+      case 'Urgence':
+        priorite = 'Critique';
+        break;
+      case 'Hospitalisé':
+        priorite = 'Surveillance';
+        break;
+      default:
+        priorite = 'Normal';
+    }
+
+    return {
+      'id': p['id'],
+      'nom': nomComplet.isEmpty ? 'Sans nom' : nomComplet,
+      'age': age,
+      'sexe': p['sexe'] ?? 'M',
+      'quartier': p['quartier'] ?? 'Non renseigné',
+      'diagnostic': diagnostic,
+      'priorite': priorite,
+      'telephone': p['telephone'] ?? '',
+      'derniereVisite': _formatDate(p['updated_at']),
+    };
+  }
+
+  String _formatDate(String? isoDate) {
+    if (isoDate == null) return 'Jamais';
     try {
-      final dob = DateTime.parse(p['date_naissance']);
+      final date = DateTime.parse(isoDate);
       final now = DateTime.now();
-      age = now.year - dob.year;
-      if (now.month < dob.month ||
-          (now.month == dob.month && now.day < dob.day)) {
-        age--;
-      }
-    } catch (_) {}
+      final diff = now.difference(date).inDays;
+      if (diff == 0) return "Aujourd'hui";
+      if (diff == 1) return 'Hier';
+      if (diff < 7) return 'Il y a $diff jours';
+      return '${date.day}/${date.month}/${date.year}';
+    } catch (_) {
+      return 'Date inconnue';
+    }
   }
 
-  // Nom complet : prénom + nom
-  final nomComplet = '${p['prenom'] ?? ''} ${p['nom'] ?? ''}'.trim();
+  List<Map<String, dynamic>> get _filteredPatients {
+    List<Map<String, dynamic>> filtered = _patients;
 
-  // Extraire le diagnostic depuis le champ notes (format "Diagnostic: X | Traitement: Y")
-  String diagnostic = 'Pas de diagnostic';
-  final notes = p['notes']?.toString() ?? '';
-  if (notes.contains('Diagnostic:')) {
-    final match = RegExp(r'Diagnostic:\s*([^|\n]+)').firstMatch(notes);
-    if (match != null) diagnostic = match.group(1)!.trim();
-  } else if (notes.isNotEmpty) {
-    diagnostic = notes;
-  }
+    if (_selectedFilter != 'Tous') {
+      filtered = filtered.where((p) => p['priorite'] == _selectedFilter).toList();
+    }
 
-  // Mapper le statut Laravel vers la priorité de l'UI
-  String priorite;
-  switch (p['statut']) {
-    case 'Urgence':
-      priorite = 'Critique';
-      break;
-    case 'Hospitalisé':
-      priorite = 'Surveillance';
-      break;
-    default:
-      priorite = 'Normal';
-  }
+    if (_searchQuery.isNotEmpty) {
+      final query = _searchQuery.toLowerCase().trim();
+      filtered = filtered.where((p) {
+        final nom = (p['nom'] ?? '').toString().toLowerCase();
+        final diagnostic = (p['diagnostic'] ?? '').toString().toLowerCase();
+        final quartier = (p['quartier'] ?? '').toString().toLowerCase();
+        final telephone = (p['telephone'] ?? '').toString().toLowerCase();
 
-  return {
-    'id': p['id'],
-    'nom': nomComplet.isEmpty ? 'Sans nom' : nomComplet,
-    'age': age,
-    'sexe': p['sexe'] ?? 'M',
-    'quartier': p['quartier'] ?? 'Non renseigné',
-    'diagnostic': diagnostic,
-    'priorite': priorite,
-    'telephone': p['telephone'] ?? '',
-    'derniereVisite': _formatDate(p['updated_at']),
-  };
-}
+        return nom.contains(query) ||
+            diagnostic.contains(query) ||
+            quartier.contains(query) ||
+            telephone.contains(query);
+      }).toList();
+    }
 
-String _formatDate(String? isoDate) {
-  if (isoDate == null) return 'Jamais';
-  try {
-    final date = DateTime.parse(isoDate);
-    final now = DateTime.now();
-    final diff = now.difference(date).inDays;
-    if (diff == 0) return "Aujourd'hui";
-    if (diff == 1) return 'Hier';
-    if (diff < 7) return 'Il y a $diff jours';
-    return '${date.day}/${date.month}/${date.year}';
-  } catch (_) {
-    return 'Date inconnue';
-  }
-}
-
-List<Map<String, dynamic>> get _filteredPatients {
-    if (_selectedFilter == 'Tous') return _patients;
-    return _patients.where((p) => p['priorite'] == _selectedFilter).toList();
+    return filtered;
   }
 
   @override
@@ -320,10 +251,24 @@ List<Map<String, dynamic>> get _filteredPatients {
             child: TextField(
               controller: _searchController,
               style: const TextStyle(color: Colors.white),
+              onChanged: (value) {
+                setState(() {
+                  _searchQuery = value;
+                });
+              },
               decoration: InputDecoration(
                 hintText: 'Rechercher un patient...',
                 hintStyle: TextStyle(color: Colors.white.withOpacity(0.3)),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF6B6B7B)),
+                suffixIcon: _searchQuery.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear, color: Color(0xFF6B6B7B)),
+                        onPressed: () {
+                          _searchController.clear();
+                          setState(() => _searchQuery = '');
+                        },
+                      )
+                    : null,
                 filled: true,
                 fillColor: const Color(0xFF12121A),
                 border: OutlineInputBorder(
@@ -396,14 +341,32 @@ List<Map<String, dynamic>> get _filteredPatients {
                 : RefreshIndicator(
                     onRefresh: _refreshPatients,
                     color: const Color(0xFFFF4433),
-                    child: ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _filteredPatients.length,
-                      itemBuilder: (context, index) {
-                        final patient = _filteredPatients[index];
-                        return _buildPatientCard(context, patient);
-                      },
-                    ),
+                    child: _filteredPatients.isEmpty
+                        ? ListView(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            children: [
+                              const SizedBox(height: 80),
+                              Icon(Icons.search_off, color: Colors.white.withOpacity(0.3), size: 48),
+                              const SizedBox(height: 12),
+                              Center(
+                                child: Text(
+                                  _searchQuery.isNotEmpty
+                                      ? 'Aucun patient ne correspond à "$_searchQuery"'
+                                      : 'Aucun patient',
+                                  style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                                  textAlign: TextAlign.center,
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _filteredPatients.length,
+                            itemBuilder: (context, index) {
+                              final patient = _filteredPatients[index];
+                              return _buildPatientCard(context, patient);
+                            },
+                          ),
                   ),
           ),
         ],
@@ -493,6 +456,16 @@ List<Map<String, dynamic>> get _filteredPatients {
         prioriteColor = const Color(0xFF4CAF50);
     }
 
+    final nomString = (patient['nom'] ?? '').toString();
+    final initiales = nomString.isEmpty
+        ? '?'
+        : nomString
+            .split(' ')
+            .where((e) => e.isNotEmpty)
+            .map((e) => e[0].toUpperCase())
+            .take(2)
+            .join();
+
     return GestureDetector(
       onTap: () {
         Navigator.push(
@@ -522,7 +495,7 @@ List<Map<String, dynamic>> get _filteredPatients {
               ),
               child: Center(
                 child: Text(
-                  patient['nom'].split(' ').map((e) => e[0]).take(2).join(),
+                  initiales,
                   style: TextStyle(
                     color: prioriteColor,
                     fontWeight: FontWeight.bold,
@@ -539,12 +512,15 @@ List<Map<String, dynamic>> get _filteredPatients {
                 children: [
                   Row(
                     children: [
-                      Text(
-                        patient['nom'],
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 15,
+                      Flexible(
+                        child: Text(
+                          patient['nom'] ?? 'Sans nom',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 15,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -566,7 +542,7 @@ List<Map<String, dynamic>> get _filteredPatients {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    patient['diagnostic'],
+                    patient['diagnostic'] ?? '',
                     style: TextStyle(
                       color: Colors.white.withOpacity(0.5),
                       fontSize: 12,
@@ -580,14 +556,14 @@ List<Map<String, dynamic>> get _filteredPatients {
                       Icon(Icons.location_on, size: 12, color: Colors.white.withOpacity(0.3)),
                       const SizedBox(width: 4),
                       Text(
-                        patient['quartier'],
+                        patient['quartier'] ?? '',
                         style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11),
                       ),
                       const SizedBox(width: 12),
                       Icon(Icons.access_time, size: 12, color: Colors.white.withOpacity(0.3)),
                       const SizedBox(width: 4),
                       Text(
-                        patient['derniereVisite'],
+                        patient['derniereVisite'] ?? '',
                         style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11),
                       ),
                     ],
@@ -606,7 +582,7 @@ List<Map<String, dynamic>> get _filteredPatients {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    patient['priorite'],
+                    patient['priorite'] ?? '',
                     style: TextStyle(
                       color: prioriteColor,
                       fontSize: 10,
