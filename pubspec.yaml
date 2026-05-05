@@ -46,6 +46,27 @@ dependencies:
   
   # JSON serialization
   json_annotation: ^4.9.0
+  
+  # QR Code Scanner
+  mobile_scanner: ^5.2.3
+  
+  # Permissions
+  permission_handler: ^11.3.1
+  
+  # Geolocation
+  geolocator: ^13.0.1
+  
+  # Secure storage
+  flutter_secure_storage: ^9.2.2
+  
+  # Image picker
+  image_picker: ^1.1.2
+  
+  # Signature
+  signature: ^5.5.0
+  
+  # Path provider
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_test:

@@ -45,5 +45,9 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Scanner les QR Code de prestation HAD</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Géolocaliser les visites à domicile</string>
 </dict>
 </plist>

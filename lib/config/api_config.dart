@@ -80,6 +80,22 @@ class ApiConfig {
   static const String anomalies = '$apiBaseUrl/anomalies';
   static String anomalie(int id) => '$apiBaseUrl/anomalies/$id';
   
+  // Carte et Localisation
+  static const String patientsMap = '$apiBaseUrl/patients/map';
+  static const String patientsGeolocalises = '$apiBaseUrl/patients/geolocalises';
+  static String patientGeolocalisation(int id) => '$apiBaseUrl/patients/$id/geolocalisation';
+  static const String zonesVisites = '$apiBaseUrl/zones-visites';
+  static const String itineraireOptimise = '$apiBaseUrl/itineraire/optimiser';
+  static const String statistiquesZones = '$apiBaseUrl/zones/statistiques';
+
+  // Rapports
+  static const String rapports = '$apiBaseUrl/rapports';
+  static String rapport(int id) => '$apiBaseUrl/rapports/$id';
+  static String rapportTelecharger(int id) => '$apiBaseUrl/rapports/$id/telecharger';
+  static const String rapportGenerer = '$apiBaseUrl/rapports/generer';
+  static const String rapportTypes = '$apiBaseUrl/rapports/types';
+  static const String rapportStats = '$apiBaseUrl/rapports/stats';
+
   // Administration
   static const String adminUsers = '$apiBaseUrl/users';
   static String adminUser(int id) => '$apiBaseUrl/users/$id';

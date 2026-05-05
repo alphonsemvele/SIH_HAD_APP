@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/message_service.dart';
 
 class MessagerieScreen extends StatefulWidget {
   const MessagerieScreen({super.key});
@@ -9,63 +10,64 @@ class MessagerieScreen extends StatefulWidget {
 
 class _MessagerieScreenState extends State<MessagerieScreen> with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  final List<Map<String, dynamic>> _conversations = [
-    {
-      'nom': 'Dr. Michel Onana',
-      'role': 'Cardiologue',
-      'dernier': 'D\'accord pour la modification du traitement de M. Nguemo',
-      'heure': '10:32',
-      'nonLu': 2,
-      'online': true,
-    },
-    {
-      'nom': 'Équipe HAD',
-      'role': 'Groupe',
-      'dernier': 'Claire: Qui peut me remplacer vendredi ?',
-      'heure': '09:45',
-      'nonLu': 5,
-      'online': false,
-      'isGroup': true,
-    },
-    {
-      'nom': 'Dr. Christiane Bella',
-      'role': 'Diabétologue',
-      'dernier': 'Merci pour le compte rendu',
-      'heure': 'Hier',
-      'nonLu': 0,
-      'online': false,
-    },
-    {
-      'nom': 'Pharmacie Centrale',
-      'role': 'Pharmacie',
-      'dernier': 'Les médicaments sont prêts pour la livraison',
-      'heure': 'Hier',
-      'nonLu': 1,
-      'online': true,
-    },
-    {
-      'nom': 'Dr. Robert Tagne',
-      'role': 'Pneumologue',
-      'dernier': 'Vous: J\'ai augmenté l\'O2 à 3L/min',
-      'heure': 'Lun',
-      'nonLu': 0,
-      'online': false,
-    },
-    {
-      'nom': 'Claire Mbede',
-      'role': 'Infirmière HAD',
-      'dernier': 'Ok je prends le relais demain',
-      'heure': 'Lun',
-      'nonLu': 0,
-      'online': true,
-    },
-  ];
+  final MessageService _messageService = MessageService();
+  List<Map<String, dynamic>> _conversations = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadConversations();
+  }
+
+  Future<void> _loadConversations() async {
+    setState(() => _isLoading = true);
+    
+    try {
+      final result = await _messageService.getConversations();
+      
+      if (result['success']) {
+        setState(() {
+          _conversations = List<Map<String, dynamic>>.from(result['data']);
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar(result['message'] ?? 'Erreur lors du chargement');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar('Erreur: ${e.toString()}');
+    }
+  }
+
+  Future<void> _refreshConversations() async {
+    await _loadConversations();
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFF4433),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Mapper les données API pour l'UI
+  Map<String, dynamic> _mapConversationFromApi(Map<String, dynamic> conversation) {
+    return {
+      'id': conversation['id'],
+      'nom': conversation['display_title'] ?? 'Conversation',
+      'role': conversation['is_group'] ? 'Groupe' : 'Utilisateur',
+      'dernier': conversation['last_message_content'] ?? 'Aucun message',
+      'heure': conversation['last_message_time'] ?? '',
+      'nonLu': conversation['unread_count'] ?? 0,
+      'online': false, // À implémenter avec un système de présence
+      'isGroup': conversation['is_group'] ?? false,
+    };
   }
 
   @override
@@ -128,32 +130,69 @@ class _MessagerieScreenState extends State<MessagerieScreen> with SingleTickerPr
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text('Tous'),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.3),
-                          borderRadius: BorderRadius.circular(10),
+                      if (_conversations.isNotEmpty) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            '${_conversations.length}',
+                            style: const TextStyle(fontSize: 11),
+                          ),
                         ),
-                        child: const Text('8', style: TextStyle(fontSize: 11)),
-                      ),
+                      ],
                     ],
                   ),
                 ),
-                const Tab(text: 'Médecins'),
+                Tab(
+                  child: Builder(
+                    builder: (context) {
+                      final unreadCount = _conversations
+                          .where((c) => (c['unread_count'] ?? 0) > 0)
+                          .length;
+                      return Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Text('Médecins'),
+                          if (unreadCount > 0) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                '$unreadCount',
+                                style: const TextStyle(fontSize: 11),
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                ),
                 const Tab(text: 'Équipe'),
               ],
             ),
           ),
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildConversationsList(_conversations),
-          _buildConversationsList(_conversations.where((c) => (c['role'] as String).contains('logue')).toList()),
-          _buildConversationsList(_conversations.where((c) => c['isGroup'] == true || (c['role'] as String).contains('Infirmière')).toList()),
-        ],
+      body: RefreshIndicator(
+        onRefresh: _refreshConversations,
+        color: const Color(0xFF1A1A2E),
+        child: TabBarView(
+          controller: _tabController,
+          children: [
+            _buildConversationsList(_conversations.map((conv) => _mapConversationFromApi(conv)).toList()),
+            _buildConversationsList(_conversations.where((c) => (c['unread_count'] ?? 0) > 0).map((conv) => _mapConversationFromApi(conv)).toList()),
+            _buildConversationsList(_conversations.where((c) => c['is_group'] == true).map((conv) => _mapConversationFromApi(conv)).toList()),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showNewMessageSheet(context),

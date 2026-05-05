@@ -8,13 +8,6 @@ import 'urgences_screen.dart';
 import 'planning_screen.dart';
 import 'messagerie_screen.dart';
 import 'rapports_screen.dart';
-import 'test_api_screen.dart';
-import 'test_patient_creation_screen.dart';
-import 'test_login_screen.dart';
-import 'test_login_fixed_screen.dart';
-import 'test_api_routes_screen.dart';
-import 'test_sanctum_auth_screen.dart';
-import 'test_all_endpoints_screen.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -246,34 +239,6 @@ class _MainLayoutState extends State<MainLayout> {
                   }),
                   _buildDrawerItem(Icons.help_outline_rounded, 'Aide', () {
                     Navigator.pop(context);
-                  }),
-                  _buildDrawerItem(Icons.bug_report_rounded, 'Test API', () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestApiScreen()));
-                  }),
-                  _buildDrawerItem(Icons.person_add_rounded, 'Test Patient', () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestPatientCreationScreen()));
-                  }),
-                  _buildDrawerItem(Icons.login_rounded, 'Test Login', () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestLoginScreen()));
-                  }),
-                  _buildDrawerItem(Icons.security_rounded, 'Test Login Fixed', () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestLoginFixedScreen()));
-                  }),
-                  _buildDrawerItem(Icons.api_rounded, 'Test API Routes', () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestApiRoutesScreen()));
-                  }),
-                  _buildDrawerItem(Icons.security_rounded, 'Test Sanctum Auth', () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestSanctumAuthScreen()));
-                  }),
-                  _buildDrawerItem(Icons.checklist_rounded, 'Test Tous Endpoints', () {
-                    Navigator.pop(context);
-                    Navigator.push(context, MaterialPageRoute(builder: (_) => const TestAllEndpointsScreen()));
                   }),
                 ],
               ),

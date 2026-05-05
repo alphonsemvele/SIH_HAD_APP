@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'add_planning_screen.dart';
+import '../services/planning_service.dart';
 
 class PlanningScreen extends StatefulWidget {
   const PlanningScreen({super.key});
@@ -8,8 +10,11 @@ class PlanningScreen extends StatefulWidget {
 }
 
 class _PlanningScreenState extends State<PlanningScreen> {
-  int _selectedDay = 27; // Jour sélectionné (aujourd'hui)
-  
+  final PlanningService _planningService = PlanningService();
+  int _selectedDay = DateTime.now().day;
+  List<Map<String, dynamic>> _planning = [];
+  bool _isLoading = true;
+
   final List<Map<String, dynamic>> _jours = [
     {'jour': 'Lun', 'date': 27, 'actif': true},
     {'jour': 'Mar', 'date': 28, 'actif': true},
@@ -20,32 +25,69 @@ class _PlanningScreenState extends State<PlanningScreen> {
     {'jour': 'Dim', 'date': 2, 'actif': false},
   ];
 
-  final Map<int, List<Map<String, dynamic>>> _planning = {
-    27: [
-      {'heure': '08:00', 'fin': '12:00', 'titre': 'Tournée Matin', 'type': 'tournee', 'patients': 6, 'secteur': 'Bastos - Nlongkak'},
-      {'heure': '14:00', 'fin': '17:00', 'titre': 'Tournée Après-midi', 'type': 'tournee', 'patients': 4, 'secteur': 'Omnisport - Essos'},
-    ],
-    28: [
-      {'heure': '08:00', 'fin': '12:00', 'titre': 'Tournée Matin', 'type': 'tournee', 'patients': 5, 'secteur': 'Messa - Mokolo'},
-      {'heure': '13:00', 'fin': '14:00', 'titre': 'Réunion équipe HAD', 'type': 'reunion', 'lieu': 'Salle 204'},
-      {'heure': '15:00', 'fin': '17:00', 'titre': 'Formation soins palliatifs', 'type': 'formation', 'lieu': 'Amphi B'},
-    ],
-    29: [
-      {'heure': '08:00', 'fin': '16:00', 'titre': 'Tournée Complète', 'type': 'tournee', 'patients': 8, 'secteur': 'Bastos - Nlongkak - Omnisport'},
-    ],
-    30: [
-      {'heure': '08:00', 'fin': '12:00', 'titre': 'Tournée Matin', 'type': 'tournee', 'patients': 6, 'secteur': 'Bastos'},
-      {'heure': '14:00', 'fin': '15:00', 'titre': 'Visite urgence - M. Mbede', 'type': 'urgence', 'quartier': 'Bastos'},
-    ],
-    31: [
-      {'heure': '08:00', 'fin': '12:00', 'titre': 'Tournée Matin', 'type': 'tournee', 'patients': 5, 'secteur': 'Nlongkak - Messa'},
-      {'heure': '14:00', 'fin': '17:00', 'titre': 'Tournée Après-midi', 'type': 'tournee', 'patients': 4, 'secteur': 'Essos'},
-    ],
-  };
+  @override
+  void initState() {
+    super.initState();
+    _loadPlanning();
+  }
+
+  Future<void> _loadPlanning() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await _planningService.getPlanning();
+
+      if (result['success']) {
+        setState(() {
+          _planning = List<Map<String, dynamic>>.from(result['data']);
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar(result['message'] ?? 'Erreur lors du chargement');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar('Erreur: ${e.toString()}');
+    }
+  }
+
+  Future<void> _refreshPlanning() async {
+    await _loadPlanning();
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFF4433),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  // Filtre les événements pour le jour sélectionné
+  List<Map<String, dynamic>> _eventsForDay(int day) {
+    return _planning.where((event) {
+      final dateStr = event['date']?.toString();
+      if (dateStr == null) return false;
+      try {
+        final date = DateTime.parse(dateStr);
+        return date.day == day;
+      } catch (_) {
+        return false;
+      }
+    }).toList();
+  }
+
+  // Indique si un jour a au moins un événement
+  bool _hasEventsOnDay(int day) {
+    return _eventsForDay(day).isNotEmpty;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final events = _planning[_selectedDay] ?? [];
+    final events = _eventsForDay(_selectedDay);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
@@ -58,7 +100,10 @@ class _PlanningScreenState extends State<PlanningScreen> {
         ),
         title: const Text(
           'Planning',
-          style: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Color(0xFF1A1A2E),
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
           IconButton(
@@ -70,154 +115,207 @@ class _PlanningScreenState extends State<PlanningScreen> {
               ),
               child: const Icon(Icons.today, color: Color(0xFF1A1A2E), size: 20),
             ),
-            onPressed: () => setState(() => _selectedDay = 27),
+            onPressed: () => setState(() => _selectedDay = DateTime.now().day),
           ),
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // Mois et année
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: const Icon(Icons.chevron_left, color: Color(0xFF1A1A2E)),
-                  onPressed: () {},
-                ),
-                const Text(
-                  'Janvier 2025',
-                  style: TextStyle(
-                    color: Color(0xFF1A1A2E),
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.chevron_right, color: Color(0xFF1A1A2E)),
-                  onPressed: () {},
-                ),
-              ],
-            ),
-          ),
-
-          // Jours de la semaine
-          Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: _jours.map((jour) {
-                final isSelected = jour['date'] == _selectedDay;
-                final isToday = jour['date'] == 27;
-                final isActif = jour['actif'] as bool;
-
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedDay = jour['date'] as int),
-                  child: Container(
-                    width: 45,
-                    padding: const EdgeInsets.symmetric(vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isSelected ? const Color(0xFFFF4433) : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFFF4433)),
+            )
+          : RefreshIndicator(
+              onRefresh: _refreshPlanning,
+              color: const Color(0xFFFF4433),
+              child: Column(
+                children: [
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 12,
                     ),
-                    child: Column(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
+                        IconButton(
+                          icon: const Icon(
+                            Icons.chevron_left,
+                            color: Color(0xFF1A1A2E),
+                          ),
+                          onPressed: () {},
+                        ),
                         Text(
-                          jour['jour'] as String,
-                          style: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : isActif
-                                    ? Colors.grey.shade600
-                                    : Colors.grey.shade400,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
+                          _formatMonthYear(),
+                          style: const TextStyle(
+                            color: Color(0xFF1A1A2E),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(height: 6),
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: BoxDecoration(
-                            color: isToday && !isSelected
-                                ? const Color(0xFFFF4433).withOpacity(0.1)
-                                : Colors.transparent,
-                            shape: BoxShape.circle,
+                        IconButton(
+                          icon: const Icon(
+                            Icons.chevron_right,
+                            color: Color(0xFF1A1A2E),
                           ),
-                          child: Center(
-                            child: Text(
-                              '${jour['date']}',
-                              style: TextStyle(
-                                color: isSelected
-                                    ? Colors.white
-                                    : isToday
-                                        ? const Color(0xFFFF4433)
-                                        : isActif
-                                            ? const Color(0xFF1A1A2E)
-                                            : Colors.grey.shade400,
-                                fontSize: 16,
-                                fontWeight: isToday || isSelected ? FontWeight.bold : FontWeight.normal,
-                              ),
-                            ),
-                          ),
+                          onPressed: () {},
                         ),
-                        const SizedBox(height: 4),
-                        if (_planning.containsKey(jour['date']))
-                          Container(
-                            width: 6,
-                            height: 6,
+                      ],
+                    ),
+                  ),
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: _jours.map((jour) {
+                        final dayInt = jour['date'] as int;
+                        final isSelected = dayInt == _selectedDay;
+                        final isToday = dayInt == DateTime.now().day;
+                        final isActif = jour['actif'] as bool;
+
+                        return GestureDetector(
+                          onTap: () => setState(() => _selectedDay = dayInt),
+                          child: Container(
+                            width: 45,
+                            padding: const EdgeInsets.symmetric(vertical: 10),
                             decoration: BoxDecoration(
-                              color: isSelected ? Colors.white : const Color(0xFFFF4433),
-                              shape: BoxShape.circle,
+                              color: isSelected
+                                  ? const Color(0xFFFF4433)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                Text(
+                                  jour['jour'] as String,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : isActif
+                                            ? Colors.grey.shade600
+                                            : Colors.grey.shade400,
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(height: 6),
+                                Container(
+                                  width: 32,
+                                  height: 32,
+                                  decoration: BoxDecoration(
+                                    color: isToday && !isSelected
+                                        ? const Color(0xFFFF4433).withOpacity(0.1)
+                                        : Colors.transparent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: Center(
+                                    child: Text(
+                                      '$dayInt',
+                                      style: TextStyle(
+                                        color: isSelected
+                                            ? Colors.white
+                                            : isToday
+                                                ? const Color(0xFFFF4433)
+                                                : isActif
+                                                    ? const Color(0xFF1A1A2E)
+                                                    : Colors.grey.shade400,
+                                        fontSize: 16,
+                                        fontWeight: isToday || isSelected
+                                            ? FontWeight.bold
+                                            : FontWeight.normal,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                if (_hasEventsOnDay(dayInt))
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: isSelected
+                                          ? Colors.white
+                                          : const Color(0xFFFF4433),
+                                      shape: BoxShape.circle,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
-                      ],
+                        );
+                      }).toList(),
                     ),
                   ),
-                );
-              }).toList(),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: events.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.event_busy,
+                                  size: 60,
+                                  color: Colors.grey.shade300,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  'Aucun événement ce jour',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade500,
+                                    fontSize: 16,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: events.length,
+                            itemBuilder: (context, index) {
+                              return _buildEventCard(events[index]);
+                            },
+                          ),
+                  ),
+                ],
+              ),
             ),
-          ),
-
-          const SizedBox(height: 16),
-
-          // Événements du jour
-          Expanded(
-            child: events.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.event_busy, size: 60, color: Colors.grey.shade300),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Aucun événement ce jour',
-                          style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: events.length,
-                    itemBuilder: (context, index) {
-                      final event = events[index];
-                      return _buildEventCard(event);
-                    },
-                  ),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {},
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const AddPlanningScreen()),
+          );
+
+          if (result == true) {
+            _refreshPlanning();
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Événement créé avec succès'),
+                backgroundColor: Color(0xFF4CAF50),
+                duration: Duration(seconds: 2),
+              ),
+            );
+          }
+        },
         backgroundColor: const Color(0xFFFF4433),
         child: const Icon(Icons.add, color: Colors.white),
       ),
     );
+  }
+
+  String _formatMonthYear() {
+    const mois = [
+      'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
+      'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre',
+    ];
+    final now = DateTime.now();
+    return '${mois[now.month - 1]} ${now.year}';
   }
 
   Widget _buildEventCard(Map<String, dynamic> event) {
@@ -251,11 +349,10 @@ class _PlanningScreenState extends State<PlanningScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Timeline
           Column(
             children: [
               Text(
-                event['heure'],
+                event['heure']?.toString() ?? '--:--',
                 style: const TextStyle(
                   color: Color(0xFF1A1A2E),
                   fontWeight: FontWeight.bold,
@@ -264,14 +361,12 @@ class _PlanningScreenState extends State<PlanningScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                event['fin'],
+                event['fin']?.toString() ?? '--:--',
                 style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),
             ],
           ),
           const SizedBox(width: 16),
-
-          // Ligne verticale
           Column(
             children: [
               Container(
@@ -290,8 +385,6 @@ class _PlanningScreenState extends State<PlanningScreen> {
             ],
           ),
           const SizedBox(width: 16),
-
-          // Card de l'événement
           Expanded(
             child: Container(
               padding: const EdgeInsets.all(16),
@@ -323,7 +416,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: Text(
-                          event['titre'],
+                          event['titre']?.toString() ?? 'Sans titre',
                           style: const TextStyle(
                             color: Color(0xFF1A1A2E),
                             fontWeight: FontWeight.bold,
@@ -335,56 +428,43 @@ class _PlanningScreenState extends State<PlanningScreen> {
                   ),
                   const SizedBox(height: 10),
                   if (event['type'] == 'tournee') ...[
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
-                        const SizedBox(width: 6),
-                        Text(
-                          event['secteur'],
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                        ),
-                      ],
-                    ),
+                    if (event['secteur'] != null)
+                      _buildEventInfoRow(
+                        Icons.location_on,
+                        event['secteur'].toString(),
+                      ),
                     const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        Icon(Icons.people, size: 14, color: Colors.grey.shade500),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${event['patients']} patients',
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                        ),
-                      ],
+                    if (event['patients'] != null)
+                      _buildEventInfoRow(
+                        Icons.people,
+                        '${event['patients']} patients',
+                      ),
+                  ] else if (event['lieu'] != null)
+                    _buildEventInfoRow(Icons.room, event['lieu'].toString())
+                  else if (event['quartier'] != null)
+                    _buildEventInfoRow(
+                      Icons.location_on,
+                      event['quartier'].toString(),
                     ),
-                  ] else if (event['lieu'] != null) ...[
-                    Row(
-                      children: [
-                        Icon(Icons.room, size: 14, color: Colors.grey.shade500),
-                        const SizedBox(width: 6),
-                        Text(
-                          event['lieu'],
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ] else if (event['quartier'] != null) ...[
-                    Row(
-                      children: [
-                        Icon(Icons.location_on, size: 14, color: Colors.grey.shade500),
-                        const SizedBox(width: 6),
-                        Text(
-                          event['quartier'],
-                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ],
                 ],
               ),
             ),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEventInfoRow(IconData icon, String text) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: Colors.grey.shade500),
+        const SizedBox(width: 6),
+        Text(
+          text,
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+        ),
+      ],
     );
   }
 }

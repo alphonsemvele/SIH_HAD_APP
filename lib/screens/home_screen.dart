@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tournee_detail_screen.dart';
+import 'qr_scan_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -90,6 +91,17 @@ class HomeScreen extends StatelessWidget {
             _buildAlertCard('Glycémie haute', 'Marie-Claire Bella - 2.1 g/L', '07:30', Icons.water_drop, const Color(0xFFFF9800)),
           ],
         ),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const QrScanScreen()),
+          );
+        },
+        backgroundColor: const Color(0xFFFF4433),
+        icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+        label: const Text('Scanner QR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
       ),
     );
   }

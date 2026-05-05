@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../services/rapport_service.dart';
 
 class RapportsScreen extends StatefulWidget {
   const RapportsScreen({super.key});
@@ -7,64 +8,18 @@ class RapportsScreen extends StatefulWidget {
   State<RapportsScreen> createState() => _RapportsScreenState();
 }
 
-class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProviderStateMixin {
+class _RapportsScreenState extends State<RapportsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-
-  final List<Map<String, dynamic>> _rapports = [
-    {
-      'titre': 'Rapport de visite - Jean-Pierre Nguemo',
-      'date': '27/01/2025',
-      'heure': '08:45',
-      'type': 'visite',
-      'status': 'Complété',
-      'patient': 'Jean-Pierre Nguemo',
-    },
-    {
-      'titre': 'Rapport de visite - Marie-Claire Bella',
-      'date': '27/01/2025',
-      'heure': '09:50',
-      'type': 'visite',
-      'status': 'Complété',
-      'patient': 'Marie-Claire Bella',
-    },
-    {
-      'titre': 'Rapport de visite - Robert Tagne',
-      'date': '27/01/2025',
-      'heure': '10:30',
-      'type': 'visite',
-      'status': 'En cours',
-      'patient': 'Robert Tagne',
-    },
-    {
-      'titre': 'Rapport tournée matin',
-      'date': '26/01/2025',
-      'heure': '12:15',
-      'type': 'tournee',
-      'status': 'Complété',
-      'patients': 5,
-    },
-    {
-      'titre': 'Rapport d\'incident - Chute patient',
-      'date': '25/01/2025',
-      'heure': '14:20',
-      'type': 'incident',
-      'status': 'Complété',
-      'patient': 'Pauline Essomba',
-    },
-    {
-      'titre': 'Rapport tournée après-midi',
-      'date': '25/01/2025',
-      'heure': '17:30',
-      'type': 'tournee',
-      'status': 'Complété',
-      'patients': 4,
-    },
-  ];
+  final RapportService _rapportService = RapportService();
+  List<Map<String, dynamic>> _rapports = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _loadRapports();
   }
 
   @override
@@ -72,6 +27,64 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
     _tabController.dispose();
     super.dispose();
   }
+
+  Future<void> _loadRapports() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final result = await _rapportService.getRapports();
+
+      if (result['success']) {
+        final List<dynamic> raw = result['data'] ?? [];
+        setState(() {
+          _rapports = raw
+              .map((r) => _mapRapportFromApi(Map<String, dynamic>.from(r)))
+              .toList();
+          _isLoading = false;
+        });
+      } else {
+        setState(() => _isLoading = false);
+        _showErrorSnackBar(result['message'] ?? 'Erreur lors du chargement');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      _showErrorSnackBar('Erreur: ${e.toString()}');
+    }
+  }
+
+  Future<void> _refreshRapports() async {
+    await _loadRapports();
+  }
+
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFFFF4433),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Map<String, dynamic> _mapRapportFromApi(Map<String, dynamic> rapport) {
+    final createdAt = rapport['created_at']?.toString() ?? '';
+    return {
+      'id': rapport['id'],
+      'titre': rapport['titre'] ?? 'Sans titre',
+      'date': rapport['date_formatee'] ?? '00/00/0000',
+      'heure': createdAt.length >= 16 ? createdAt.substring(11, 16) : '00:00',
+      'type': rapport['type'] ?? 'autre',
+      'status': rapport['status_libelle'] ?? 'Inconnu',
+      'patient': rapport['patient']?['nom'] ?? 'Non spécifié',
+    };
+  }
+
+  // Compteurs dynamiques pour les stats
+  int get _totalCount => _rapports.length;
+  int get _completedCount =>
+      _rapports.where((r) => r['status'] == 'Complété').length;
+  int get _pendingCount =>
+      _rapports.where((r) => r['status'] != 'Complété').length;
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +99,10 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
         ),
         title: const Text(
           'Rapports',
-          style: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.bold),
+          style: TextStyle(
+            color: Color(0xFF1A1A2E),
+            fontWeight: FontWeight.bold,
+          ),
         ),
         actions: [
           IconButton(
@@ -96,7 +112,11 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                 color: const Color(0xFFF5F5F5),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.filter_list, color: Color(0xFF1A1A2E), size: 20),
+              child: const Icon(
+                Icons.filter_list,
+                color: Color(0xFF1A1A2E),
+                size: 20,
+              ),
             ),
             onPressed: () {},
           ),
@@ -119,8 +139,11 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
               labelColor: Colors.white,
-              unselectedLabelColor: Colors.grey.shade600,
-              labelStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+              unselectedLabelColor: const Color(0xFF1A1A2E),
+              labelStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 13,
+              ),
               tabs: const [
                 Tab(text: 'Tous'),
                 Tab(text: 'Visites'),
@@ -130,53 +153,85 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
           ),
         ),
       ),
-      body: Column(
-        children: [
-          // Stats
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.03),
-                  blurRadius: 10,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFFFF4433)),
+            )
+          : RefreshIndicator(
+              onRefresh: _refreshRapports,
+              color: const Color(0xFF1A1A2E),
+              child: Column(
+                children: [
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _buildStatItem(
+                          'Total',
+                          '$_totalCount',
+                          Icons.description,
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.grey.shade200,
+                        ),
+                        _buildStatItem(
+                          'Complétés',
+                          '$_completedCount',
+                          Icons.check_circle,
+                        ),
+                        Container(
+                          width: 1,
+                          height: 40,
+                          color: Colors.grey.shade200,
+                        ),
+                        _buildStatItem(
+                          'En cours',
+                          '$_pendingCount',
+                          Icons.pending,
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _buildRapportsList(_rapports),
+                        _buildRapportsList(
+                          _rapports.where((r) => r['type'] == 'visite').toList(),
+                        ),
+                        _buildRapportsList(
+                          _rapports.where((r) => r['type'] == 'tournee').toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem('Ce mois', '24', Icons.description),
-                Container(width: 1, height: 40, color: Colors.grey.shade200),
-                _buildStatItem('Complétés', '22', Icons.check_circle),
-                Container(width: 1, height: 40, color: Colors.grey.shade200),
-                _buildStatItem('En cours', '2', Icons.pending),
-              ],
-            ),
-          ),
-
-          // Liste des rapports
-          Expanded(
-            child: TabBarView(
-              controller: _tabController,
-              children: [
-                _buildRapportsList(_rapports),
-                _buildRapportsList(_rapports.where((r) => r['type'] == 'visite').toList()),
-                _buildRapportsList(_rapports.where((r) => r['type'] == 'tournee').toList()),
-              ],
-            ),
-          ),
-        ],
-      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showNewRapportSheet(context),
         backgroundColor: const Color(0xFFFF4433),
         icon: const Icon(Icons.add, color: Colors.white),
-        label: const Text('Nouveau rapport', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+        label: const Text(
+          'Nouveau rapport',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+        ),
       ),
     );
   }
@@ -196,22 +251,34 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
         ),
         Text(
           label,
-          style: TextStyle(
-            color: Colors.grey.shade500,
-            fontSize: 12,
-          ),
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
         ),
       ],
     );
   }
 
   Widget _buildRapportsList(List<Map<String, dynamic>> rapports) {
+    if (rapports.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.description_outlined, size: 60, color: Colors.grey.shade300),
+            const SizedBox(height: 16),
+            Text(
+              'Aucun rapport',
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
+            ),
+          ],
+        ),
+      );
+    }
+
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: rapports.length,
       itemBuilder: (context, index) {
-        final rapport = rapports[index];
-        return _buildRapportCard(rapport);
+        return _buildRapportCard(rapports[index]);
       },
     );
   }
@@ -273,7 +340,7 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    rapport['titre'],
+                    rapport['titre'] ?? '',
                     style: const TextStyle(
                       color: Color(0xFF1A1A2E),
                       fontWeight: FontWeight.w600,
@@ -285,17 +352,27 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.calendar_today, size: 12, color: Colors.grey.shade500),
+                      Icon(
+                        Icons.calendar_today,
+                        size: 12,
+                        color: Colors.grey.shade500,
+                      ),
                       const SizedBox(width: 4),
                       Text(
                         '${rapport['date']} à ${rapport['heure']}',
-                        style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
+                        style: TextStyle(
+                          color: Colors.grey.shade500,
+                          fontSize: 12,
+                        ),
                       ),
                     ],
                   ),
                   const SizedBox(height: 6),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 3,
+                    ),
                     decoration: BoxDecoration(
                       color: isComplete
                           ? const Color(0xFF4CAF50).withOpacity(0.1)
@@ -303,9 +380,11 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      rapport['status'],
+                      rapport['status'] ?? '',
                       style: TextStyle(
-                        color: isComplete ? const Color(0xFF4CAF50) : const Color(0xFFFF9800),
+                        color: isComplete
+                            ? const Color(0xFF4CAF50)
+                            : const Color(0xFFFF9800),
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
@@ -317,14 +396,22 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
             Column(
               children: [
                 IconButton(
-                  icon: Icon(Icons.download, color: Colors.grey.shade400, size: 20),
+                  icon: Icon(
+                    Icons.download,
+                    color: Colors.grey.shade400,
+                    size: 20,
+                  ),
                   onPressed: () {},
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
                 ),
                 const SizedBox(height: 8),
                 IconButton(
-                  icon: Icon(Icons.share, color: Colors.grey.shade400, size: 20),
+                  icon: Icon(
+                    Icons.share,
+                    color: Colors.grey.shade400,
+                    size: 20,
+                  ),
                   onPressed: () {},
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
@@ -368,7 +455,7 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                 children: [
                   Expanded(
                     child: Text(
-                      rapport['titre'],
+                      rapport['titre'] ?? '',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -390,38 +477,19 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('Date', '${rapport['date']} à ${rapport['heure']}'),
-                    _buildDetailRow('Type', rapport['type'] == 'visite' ? 'Rapport de visite' : 'Rapport de tournée'),
-                    _buildDetailRow('Statut', rapport['status']),
+                    _buildDetailRow(
+                      'Date',
+                      '${rapport['date']} à ${rapport['heure']}',
+                    ),
+                    _buildDetailRow(
+                      'Type',
+                      rapport['type'] == 'visite'
+                          ? 'Rapport de visite'
+                          : 'Rapport de tournée',
+                    ),
+                    _buildDetailRow('Statut', rapport['status'] ?? ''),
                     if (rapport['patient'] != null)
-                      _buildDetailRow('Patient', rapport['patient']),
-                    if (rapport['patients'] != null)
-                      _buildDetailRow('Patients visités', '${rapport['patients']}'),
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Contenu du rapport',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF1A1A2E),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F5F5),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'Visite effectuée à domicile. Patient stable.\n\nConstantes relevées :\n- Température : 36.8°C\n- Tension : 145/92 mmHg\n- Pouls : 78 bpm\n- Saturation : 96%\n\nObservations :\nÉtat général satisfaisant. Pas de signes d\'aggravation. Traitement bien suivi. Prochain RDV prévu dans 48h.\n\nRecommandations :\n- Continuer le traitement actuel\n- Surveiller la tension\n- Appeler en cas de dyspnée',
-                        style: TextStyle(
-                          color: Colors.grey.shade700,
-                          height: 1.5,
-                        ),
-                      ),
-                    ),
+                      _buildDetailRow('Patient', '${rapport['patient']}'),
                   ],
                 ),
               ),
@@ -445,11 +513,16 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                       child: OutlinedButton.icon(
                         onPressed: () {},
                         icon: const Icon(Icons.edit, color: Color(0xFFFF4433)),
-                        label: const Text('Modifier', style: TextStyle(color: Color(0xFFFF4433))),
+                        label: const Text(
+                          'Modifier',
+                          style: TextStyle(color: Color(0xFFFF4433)),
+                        ),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFFFF4433)),
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       ),
                     ),
@@ -458,11 +531,16 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                       child: ElevatedButton.icon(
                         onPressed: () {},
                         icon: const Icon(Icons.download, color: Colors.white),
-                        label: const Text('Télécharger PDF', style: TextStyle(color: Colors.white)),
+                        label: const Text(
+                          'Télécharger PDF',
+                          style: TextStyle(color: Colors.white),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFFF4433),
                           padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                           elevation: 0,
                         ),
                       ),
@@ -486,10 +564,7 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
             width: 120,
             child: Text(
               label,
-              style: TextStyle(
-                color: Colors.grey.shade600,
-                fontSize: 14,
-              ),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
           ),
           Expanded(
@@ -623,10 +698,7 @@ class _RapportsScreenState extends State<RapportsScreen> with SingleTickerProvid
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      color: Colors.grey.shade500,
-                      fontSize: 13,
-                    ),
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                   ),
                 ],
               ),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'patient_detail_screen.dart';
+import 'qr_scan_screen.dart';
 
 class TourneeDetailScreen extends StatelessWidget {
   const TourneeDetailScreen({super.key});
@@ -28,6 +29,15 @@ class TourneeDetailScreen extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const QrScanScreen()),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.map_outlined, color: Colors.white),
             onPressed: () {},
