@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/map_service.dart';
+import '../services/location_service.dart';
+import '../services/routing_service.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -10,66 +15,172 @@ class MapScreen extends StatefulWidget {
 
 class _MapScreenState extends State<MapScreen> {
   final MapService _mapService = MapService();
+  final LocationService _locationService = LocationService();
+  final RoutingService _routingService = RoutingService();
+  final MapController _mapController = MapController();
+
   List<Map<String, dynamic>> _patients = [];
+  Position? _currentPosition;
+  List<LatLng> _routePoints = [];
   bool _isLoading = true;
+  bool _isRouting = false;
+  Map<String, dynamic>? _selectedPatient;
+
+  // Centre par défaut : Yaoundé
+  static const LatLng _yaoundeCentre = LatLng(3.8480, 11.5021);
 
   @override
   void initState() {
     super.initState();
-    _loadPatientsMap();
+    _initMap();
   }
 
-  Future<void> _loadPatientsMap() async {
+  Future<void> _initMap() async {
     setState(() => _isLoading = true);
+    // En parallèle : position GPS + patients
+    final results = await Future.wait([
+      _locationService.getCurrentPosition(),
+      _mapService.getPatientsMap(),
+    ]);
 
-    try {
-      final result = await _mapService.getPatientsMap();
+    final position = results[0] as Position?;
+    final patientsRes = results[1] as Map<String, dynamic>;
 
-      if (result['success']) {
-        final List<dynamic> raw = result['data'] ?? [];
-        setState(() {
-          _patients = raw
-              .map((p) => _mapPatientFromApi(Map<String, dynamic>.from(p)))
-              .toList();
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
-        _showErrorSnackBar(result['message'] ?? 'Erreur lors du chargement');
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      _showErrorSnackBar('Erreur: ${e.toString()}');
+    final List<dynamic> rawPatients = (patientsRes['success'] == true)
+        ? (patientsRes['data'] ?? [])
+        : [];
+
+    setState(() {
+      _currentPosition = position;
+      _patients = rawPatients
+          .map((p) => Map<String, dynamic>.from(p))
+          .where((p) => p['latitude'] != null && p['longitude'] != null)
+          .toList();
+      _computeDistances();
+      _isLoading = false;
+    });
+
+    // Centrer la carte sur la position infirmier si dispo
+    if (_currentPosition != null) {
+      _mapController.move(
+        LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+        14.0,
+      );
+    } else if (_patients.isNotEmpty) {
+      // Sinon centrer sur le 1er patient
+      _mapController.move(
+        LatLng(_patientLat(_patients.first), _patientLng(_patients.first)),
+        13.0,
+      );
     }
   }
 
-  Future<void> _refreshPatients() async {
-    await _loadPatientsMap();
+  double _patientLat(Map<String, dynamic> p) {
+    final v = p['latitude'];
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0.0;
   }
 
-  void _showErrorSnackBar(String message) {
+  double _patientLng(Map<String, dynamic> p) {
+    final v = p['longitude'];
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString()) ?? 0.0;
+  }
+
+  void _computeDistances() {
+    if (_currentPosition == null) return;
+    for (var p in _patients) {
+      final d = _locationService.distanceKm(
+        _currentPosition!.latitude,
+        _currentPosition!.longitude,
+        _patientLat(p),
+        _patientLng(p),
+      );
+      p['_distance_km'] = d;
+      p['distance'] = '${d.toStringAsFixed(1)} km';
+    }
+    _patients.sort((a, b) {
+      final da = (a['_distance_km'] as double?) ?? 999.0;
+      final db = (b['_distance_km'] as double?) ?? 999.0;
+      return da.compareTo(db);
+    });
+  }
+
+  Future<void> _onPatientTap(Map<String, dynamic> patient) async {
+    setState(() {
+      _selectedPatient = patient;
+      _routePoints = [];
+      _isRouting = true;
+    });
+
+    if (_currentPosition == null) {
+      _showSnackBar('GPS désactivé. Activez la position pour calculer l\'itinéraire.', isError: true);
+      setState(() => _isRouting = false);
+      return;
+    }
+
+    final from = LatLng(_currentPosition!.latitude, _currentPosition!.longitude);
+    final to = LatLng(_patientLat(patient), _patientLng(patient));
+
+    final route = await _routingService.getRoute(from, to);
+    if (route != null) {
+      setState(() {
+        _routePoints = route['points'] as List<LatLng>;
+        _isRouting = false;
+      });
+
+      // Recadrer la carte sur la route
+      if (_routePoints.isNotEmpty) {
+        _mapController.fitCamera(
+          CameraFit.coordinates(
+            coordinates: [from, to, ..._routePoints],
+            padding: const EdgeInsets.all(60),
+          ),
+        );
+      }
+
+      final distance = ((route['distance_m'] as double) / 1000).toStringAsFixed(1);
+      final duration = ((route['duration_s'] as double) / 60).toStringAsFixed(0);
+      _showSnackBar('🗺️ ${patient['nom']} : $distance km, ~$duration min');
+    } else {
+      setState(() => _isRouting = false);
+      _showSnackBar('Itinéraire impossible (hors zone OSRM)', isError: true);
+    }
+  }
+
+  Future<void> _refreshLocation() async {
+    final pos = await _locationService.getCurrentPosition();
+    if (pos != null) {
+      setState(() {
+        _currentPosition = pos;
+        _computeDistances();
+      });
+      _mapController.move(LatLng(pos.latitude, pos.longitude), 15.0);
+      _showSnackBar('📍 Position : ${pos.latitude.toStringAsFixed(4)}, ${pos.longitude.toStringAsFixed(4)}');
+    } else {
+      _showSnackBar('GPS désactivé ou permission refusée', isError: true);
+    }
+  }
+
+  void _showSnackBar(String message, {bool isError = false}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: const Color(0xFFFF4433),
+        backgroundColor: isError ? const Color(0xFFFF4433) : const Color(0xFF4CAF50),
         duration: const Duration(seconds: 3),
       ),
     );
   }
 
-  Map<String, dynamic> _mapPatientFromApi(Map<String, dynamic> patient) {
-    return {
-      'id': patient['id'],
-      'nom': patient['nom'] ?? 'Sans nom',
-      'quartier': patient['quartier'] ?? 'Non spécifié',
-      'priorite': patient['priorite'] ?? 'Normal',
-      'distance': '${patient['distance'] ?? '0.0'} km',
-      'visite': patient['a_visiter_aujourdhui'] ?? false,
-      'latitude': patient['latitude'],
-      'longitude': patient['longitude'],
-      'derniere_visite': patient['derniere_visite'],
-      'prochaine_visite': patient['prochaine_visite'],
-    };
+  Color _prioriteColor(String? p) {
+    switch (p?.toLowerCase()) {
+      case 'critique':
+        return const Color(0xFFFF4433);
+      case 'surveillance':
+        return const Color(0xFFFF9800);
+      default:
+        return const Color(0xFF4CAF50);
+    }
   }
 
   @override
@@ -77,38 +188,113 @@ class _MapScreenState extends State<MapScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFFFF4433)),
-            )
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF4433)))
           : Stack(
               children: [
-                _buildFakeMapBackground(),
-                ..._buildMarkers(_patients),
+                // Vraie carte OSM
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _currentPosition != null
+                        ? LatLng(_currentPosition!.latitude, _currentPosition!.longitude)
+                        : _yaoundeCentre,
+                    initialZoom: 13.0,
+                    minZoom: 5,
+                    maxZoom: 18,
+                  ),
+                  children: [
+                    TileLayer(
+                      urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.example.sih_had',
+                    ),
+                    if (_routePoints.isNotEmpty)
+                      PolylineLayer(
+                        polylines: [
+                          Polyline(
+                            points: _routePoints,
+                            strokeWidth: 5,
+                            color: const Color(0xFFFF4433),
+                          ),
+                        ],
+                      ),
+                    MarkerLayer(
+                      markers: [
+                        if (_currentPosition != null)
+                          Marker(
+                            point: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+                            width: 36,
+                            height: 36,
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.blue,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: Colors.white, width: 3),
+                                boxShadow: [
+                                  BoxShadow(color: Colors.blue.withOpacity(0.4), blurRadius: 12, spreadRadius: 4),
+                                ],
+                              ),
+                              child: const Icon(Icons.my_location, color: Colors.white, size: 18),
+                            ),
+                          ),
+                        ..._patients.map((patient) {
+                          final color = _prioriteColor(patient['priorite'] as String?);
+                          final isSelected = _selectedPatient?['id'] == patient['id'];
+                          return Marker(
+                            point: LatLng(_patientLat(patient), _patientLng(patient)),
+                            width: isSelected ? 56 : 44,
+                            height: isSelected ? 56 : 44,
+                            child: GestureDetector(
+                              onTap: () => _onPatientTap(patient),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 3),
+                                  boxShadow: [
+                                    BoxShadow(color: color.withOpacity(0.5), blurRadius: 10, spreadRadius: 2),
+                                  ],
+                                ),
+                                child: Icon(
+                                  patient['a_visiter_aujourdhui'] == true ? Icons.access_time : Icons.person,
+                                  color: Colors.white,
+                                  size: isSelected ? 26 : 20,
+                                ),
+                              ),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ],
+                ),
+
                 _buildTopBar(),
                 _buildSideButtons(),
                 _buildBottomSheet(),
+                if (_isRouting)
+                  const Positioned(
+                    top: 100,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Card(
+                        color: Color(0xFF12121A),
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFFFF4433))),
+                              SizedBox(width: 12),
+                              Text('Calcul itinéraire...', style: TextStyle(color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
               ],
             ),
-    );
-  }
-
-  Widget _buildFakeMapBackground() {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF1a1a2e),
-            Color(0xFF16213e),
-            Color(0xFF0f3460),
-          ],
-        ),
-      ),
-      child: CustomPaint(
-        painter: MapGridPainter(),
-        size: Size.infinite,
-      ),
     );
   }
 
@@ -120,43 +306,28 @@ class _MapScreenState extends State<MapScreen> {
           children: [
             Expanded(
               child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 12,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF12121A),
+                  color: const Color(0xFF12121A).withOpacity(0.95),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFF1E1E2A)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(
-                      Icons.search,
-                      color: Color(0xFF6B6B7B),
-                      size: 20,
-                    ),
+                    const Icon(Icons.location_on, color: Color(0xFFFF4433), size: 20),
                     const SizedBox(width: 10),
-                    Text(
-                      'Rechercher une adresse...',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
-                        fontSize: 14,
+                    Expanded(
+                      child: Text(
+                        _currentPosition != null
+                            ? 'Position : ${_currentPosition!.latitude.toStringAsFixed(4)}, ${_currentPosition!.longitude.toStringAsFixed(4)}'
+                            : 'Position GPS non disponible',
+                        style: const TextStyle(color: Colors.white, fontSize: 13),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: const Color(0xFF12121A),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF1E1E2A)),
-              ),
-              child: const Icon(Icons.layers, color: Colors.white, size: 22),
             ),
           ],
         ),
@@ -170,11 +341,20 @@ class _MapScreenState extends State<MapScreen> {
       bottom: 280,
       child: Column(
         children: [
-          _sideButton(Icons.my_location, color: const Color(0xFFFF4433), withShadow: true),
+          GestureDetector(
+            onTap: _refreshLocation,
+            child: _sideButton(Icons.my_location, color: const Color(0xFFFF4433), withShadow: true),
+          ),
           const SizedBox(height: 10),
-          _sideButton(Icons.add),
+          GestureDetector(
+            onTap: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom + 1),
+            child: _sideButton(Icons.add),
+          ),
           const SizedBox(height: 4),
-          _sideButton(Icons.remove),
+          GestureDetector(
+            onTap: () => _mapController.move(_mapController.camera.center, _mapController.camera.zoom - 1),
+            child: _sideButton(Icons.remove),
+          ),
         ],
       ),
     );
@@ -184,17 +364,11 @@ class _MapScreenState extends State<MapScreen> {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF12121A),
+        color: const Color(0xFF12121A).withOpacity(0.95),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFF1E1E2A)),
         boxShadow: withShadow
-            ? [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.3),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ]
+            ? [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 10, offset: const Offset(0, 4))]
             : null,
       ),
       child: Icon(icon, color: color, size: 22),
@@ -203,9 +377,9 @@ class _MapScreenState extends State<MapScreen> {
 
   Widget _buildBottomSheet() {
     return DraggableScrollableSheet(
-      initialChildSize: 0.35,
-      minChildSize: 0.15,
-      maxChildSize: 0.8,
+      initialChildSize: 0.30,
+      minChildSize: 0.12,
+      maxChildSize: 0.7,
       builder: (context, scrollController) {
         return Container(
           decoration: const BoxDecoration(
@@ -214,7 +388,7 @@ class _MapScreenState extends State<MapScreen> {
             border: Border(top: BorderSide(color: Color(0xFF1E1E2A))),
           ),
           child: RefreshIndicator(
-            onRefresh: _refreshPatients,
+            onRefresh: _initMap,
             color: const Color(0xFFFF4433),
             child: Column(
               children: [
@@ -222,84 +396,36 @@ class _MapScreenState extends State<MapScreen> {
                   margin: const EdgeInsets.symmetric(vertical: 12),
                   width: 40,
                   height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF3A3A4A),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
+                  decoration: BoxDecoration(color: const Color(0xFF3A3A4A), borderRadius: BorderRadius.circular(2)),
                 ),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
-                        'Patients à proximité',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
+                      Text(
+                        'Patients (${_patients.length})',
+                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                       ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFFF4433).withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: const [
-                            Icon(
-                              Icons.navigation,
-                              color: Color(0xFFFF4433),
-                              size: 14,
-                            ),
-                            SizedBox(width: 6),
-                            Text(
-                              'Itinéraire',
-                              style: TextStyle(
-                                color: Color(0xFFFF4433),
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      if (_currentPosition != null)
+                        const Text('Triés par distance', style: TextStyle(color: Color(0xFFFF4433), fontSize: 11)),
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Expanded(
                   child: _patients.isEmpty
                       ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(
-                                Icons.location_off,
-                                size: 48,
-                                color: Colors.white.withOpacity(0.3),
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'Aucun patient à proximité',
-                                style: TextStyle(
-                                  color: Colors.white.withOpacity(0.5),
-                                ),
-                              ),
-                            ],
+                          child: Text(
+                            'Aucun patient à afficher',
+                            style: TextStyle(color: Colors.white.withOpacity(0.5)),
                           ),
                         )
                       : ListView.builder(
                           controller: scrollController,
                           padding: const EdgeInsets.symmetric(horizontal: 20),
                           itemCount: _patients.length,
-                          itemBuilder: (context, index) {
-                            return _buildPatientItem(_patients[index]);
-                          },
+                          itemBuilder: (context, index) => _buildPatientItem(_patients[index]),
                         ),
                 ),
               ],
@@ -310,232 +436,71 @@ class _MapScreenState extends State<MapScreen> {
     );
   }
 
-  List<Widget> _buildMarkers(List<Map<String, dynamic>> patients) {
-    final positions = [
-      const Offset(80, 200),
-      const Offset(200, 280),
-      const Offset(280, 180),
-      const Offset(150, 400),
-      const Offset(100, 320),
-      const Offset(250, 350),
-    ];
+  Widget _buildPatientItem(Map<String, dynamic> patient) {
+    final color = _prioriteColor(patient['priorite'] as String?);
+    final isSelected = _selectedPatient?['id'] == patient['id'];
+    final isVisited = patient['a_visiter_aujourdhui'] == false;
 
-    return List.generate(patients.length.clamp(0, positions.length), (index) {
-      final patient = patients[index];
-      final pos = positions[index];
-
-      Color color;
-      switch (patient['priorite']) {
-        case 'Critique':
-          color = const Color(0xFFFF4433);
-          break;
-        case 'Surveillance':
-          color = const Color(0xFFFF9800);
-          break;
-        default:
-          color = const Color(0xFF4CAF50);
-      }
-
-      return Positioned(
-        left: pos.dx,
-        top: pos.dy,
-        child: Column(
+    return GestureDetector(
+      onTap: () => _onPatientTap(patient),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF0A0A0F),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? const Color(0xFFFF4433) : const Color(0xFF1E1E2A),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: color.withOpacity(0.4),
-                    blurRadius: 12,
-                    spreadRadius: 2,
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+              child: Icon(Icons.person, color: color, size: 22),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    '${patient['nom'] ?? ''} ${patient['prenom'] ?? ''}'.trim(),
+                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    patient['quartier'] ?? patient['adresse'] ?? '',
+                    style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
-              child: Icon(
-                patient['visite'] == true ? Icons.check : Icons.person,
-                color: Colors.white,
-                size: 20,
-              ),
             ),
-            Container(width: 3, height: 10, color: color),
-            Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            ),
-          ],
-        ),
-      );
-    });
-  }
-
-  Widget _buildPatientItem(Map<String, dynamic> patient) {
-    Color prioriteColor;
-    switch (patient['priorite']) {
-      case 'Critique':
-        prioriteColor = const Color(0xFFFF4433);
-        break;
-      case 'Surveillance':
-        prioriteColor = const Color(0xFFFF9800);
-        break;
-      default:
-        prioriteColor = const Color(0xFF4CAF50);
-    }
-
-    final isVisited = patient['visite'] == true;
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A0A0F),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: isVisited
-              ? const Color(0xFF4CAF50).withOpacity(0.3)
-              : const Color(0xFF1E1E2A),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: prioriteColor.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Center(
-              child: isVisited
-                  ? const Icon(Icons.check, color: Color(0xFF4CAF50), size: 22)
-                  : Text(
-                      _getInitials(patient['nom'] as String? ?? ''),
-                      style: TextStyle(
-                        color: prioriteColor,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  patient['nom'] as String? ?? '',
-                  style: TextStyle(
-                    color: isVisited
-                        ? Colors.white.withOpacity(0.5)
-                        : Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    decoration: isVisited ? TextDecoration.lineThrough : null,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                  child: Text(
+                    patient['priorite'] ?? 'Normal',
+                    style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
                   ),
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.location_on,
-                      size: 12,
-                      color: Colors.white.withOpacity(0.4),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      patient['quartier'] as String? ?? '',
-                      style: TextStyle(
-                        color: Colors.white.withOpacity(0.4),
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
+                Text(
+                  patient['distance'] ?? '',
+                  style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
-                decoration: BoxDecoration(
-                  color: prioriteColor.withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  patient['priorite'] as String? ?? '',
-                  style: TextStyle(
-                    color: prioriteColor,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(
-                    Icons.directions_walk,
-                    size: 12,
-                    color: Colors.white.withOpacity(0.4),
-                  ),
-                  const SizedBox(width: 4),
-                  Text(
-                    patient['distance'] as String? ?? '',
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.6),
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
-
-  String _getInitials(String nom) {
-    if (nom.isEmpty) return '?';
-    final parts = nom.trim().split(' ').where((p) => p.isNotEmpty).toList();
-    if (parts.isEmpty) return '?';
-    return parts.map((e) => e[0]).take(2).join().toUpperCase();
-  }
-}
-
-class MapGridPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = const Color(0xFF2A2A3A).withOpacity(0.3)
-      ..strokeWidth = 1;
-
-    for (double i = 0; i < size.width; i += 50) {
-      canvas.drawLine(Offset(i, 0), Offset(i, size.height), paint);
-    }
-    for (double i = 0; i < size.height; i += 50) {
-      canvas.drawLine(Offset(0, i), Offset(size.width, i), paint);
-    }
-
-    final roadPaint = Paint()
-      ..color = const Color(0xFF3A3A4A).withOpacity(0.5)
-      ..strokeWidth = 8
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawLine(const Offset(0, 300), Offset(size.width, 300), roadPaint);
-    canvas.drawLine(const Offset(150, 0), Offset(150, size.height), roadPaint);
-    canvas.drawLine(const Offset(50, 200), const Offset(300, 400), roadPaint);
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

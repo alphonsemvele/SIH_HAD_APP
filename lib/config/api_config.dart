@@ -1,6 +1,7 @@
 class ApiConfig {
   // Configuration de l'API pour le développement
   static const String _baseUrl = 'http://172.20.10.2:8000';
+  static const String osrmUrl = 'http://172.20.10.2:5000';
   static const String _apiPrefix = '/api';
   
   // URLs de base pour différents environnements
