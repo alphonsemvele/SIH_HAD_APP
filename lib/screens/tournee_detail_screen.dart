@@ -1,20 +1,95 @@
 import 'package:flutter/material.dart';
+import '../services/tournee_service.dart';
 import 'patient_detail_screen.dart';
 import 'qr_scan_screen.dart';
 
-class TourneeDetailScreen extends StatelessWidget {
-  const TourneeDetailScreen({super.key});
+class TourneeDetailScreen extends StatefulWidget {
+  final int? tourneeId;
+  final Map<String, dynamic>? tourneeInfo;
+
+  const TourneeDetailScreen({super.key, this.tourneeId, this.tourneeInfo});
+
+  @override
+  State<TourneeDetailScreen> createState() => _TourneeDetailScreenState();
+}
+
+class _TourneeDetailScreenState extends State<TourneeDetailScreen> {
+  final TourneeService _tourneeService = TourneeService();
+  List<Map<String, dynamic>> _visites = [];
+  bool _isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadVisites();
+  }
+
+  Future<void> _loadVisites() async {
+    if (widget.tourneeId == null) {
+      setState(() => _isLoading = false);
+      return;
+    }
+    setState(() => _isLoading = true);
+    final res = await _tourneeService.getTourneeVisites(widget.tourneeId!);
+    if (!mounted) return;
+
+    if (res['success'] == true) {
+      final data = res['data'];
+      List<dynamic> raw = [];
+      if (data is Map && data['visites'] != null) {
+        raw = data['visites'] as List;
+      } else if (data is List) {
+        raw = data;
+      }
+      setState(() {
+        _visites = raw.map((v) => Map<String, dynamic>.from(v)).toList();
+        _visites.sort((a, b) => ((a['ordre'] ?? 0) as num).compareTo((b['ordre'] ?? 0) as num));
+        _isLoading = false;
+      });
+    } else {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  String _formatHeure(String? iso) {
+    if (iso == null || iso.isEmpty) return '--:--';
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+    } catch (_) {
+      return iso.length >= 5 ? iso.substring(0, 5) : iso;
+    }
+  }
+
+  String _libellePriorite(String? p) {
+    switch (p?.toLowerCase()) {
+      case 'critique': return 'Critique';
+      case 'surveillance': return 'Surveillance';
+      case 'normal': return 'Normal';
+      default: return (p ?? 'Normal');
+    }
+  }
+
+  Color _couleurPriorite(String? p) {
+    switch (p?.toLowerCase()) {
+      case 'critique': return const Color(0xFFFF4433);
+      case 'surveillance': return const Color(0xFFFF9800);
+      default: return const Color(0xFF4CAF50);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final patients = [
-      {'nom': 'Jean-Pierre Nguemo', 'diagnostic': 'Insuffisance cardiaque', 'quartier': 'Bastos', 'priorite': 'Surveillance', 'heure': '08:30', 'visite': true},
-      {'nom': 'Marie-Claire Bella', 'diagnostic': 'Diabète type 2 - Plaie pied', 'quartier': 'Nlongkak', 'priorite': 'Critique', 'heure': '09:30', 'visite': true},
-      {'nom': 'Robert Tagne', 'diagnostic': 'BPCO - Oxygénothérapie', 'quartier': 'Messa', 'priorite': 'Surveillance', 'heure': '10:15', 'visite': true},
-      {'nom': 'Pauline Essomba', 'diagnostic': 'AVC - Rééducation', 'quartier': 'Omnisport', 'priorite': 'Normal', 'heure': '11:00', 'visite': false},
-      {'nom': 'François Mbede', 'diagnostic': 'Cancer - Soins palliatifs', 'quartier': 'Bastos', 'priorite': 'Critique', 'heure': '11:45', 'visite': false},
-      {'nom': 'Jeanne Ateba', 'diagnostic': 'Post-chirurgie hanche', 'quartier': 'Nlongkak', 'priorite': 'Normal', 'heure': '12:30', 'visite': false},
-    ];
+    final info = widget.tourneeInfo ?? {};
+    final titre = info['titre']?.toString() ?? 'Tournée du jour';
+    final secteur = info['secteur']?.toString() ?? '';
+    final heure = info['heure']?.toString() ?? '';
+    final id = info['id']?.toString() ?? widget.tourneeId?.toString() ?? '';
+    final isActive = (info['statut'] == 'En cours' || info['statut'] == 'en_cours');
+
+    final visitesRealisees = _visites.where((v) => v['visite_at'] != null).length;
+    final total = _visites.length;
+    final progress = total > 0 ? visitesRealisees / total : 0.0;
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
@@ -24,158 +99,138 @@ class TourneeDetailScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: Colors.white),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          'Tournée du Matin',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        title: Text(
+          titre,
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 18),
+          overflow: TextOverflow.ellipsis,
+          maxLines: 1,
         ),
+        titleSpacing: 0,
         actions: [
           IconButton(
             icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const QrScanScreen()),
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.map_outlined, color: Colors.white),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white),
-            onPressed: () {},
+            tooltip: 'Scanner QR',
+            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScanScreen())),
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // Header info
-          Container(
-            margin: const EdgeInsets.all(16),
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: const Color(0xFF12121A),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF1E1E2A)),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFFFF4433)))
+          : RefreshIndicator(
+              color: const Color(0xFFFF4433),
+              onRefresh: _loadVisites,
+              child: Column(
+                children: [
+                  // Header info
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF12121A),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFF1E1E2A)),
+                    ),
+                    child: Column(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF4CAF50).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.play_circle_filled, color: Color(0xFF4CAF50), size: 14),
-                              SizedBox(width: 6),
-                              Text(
-                                'En cours',
-                                style: TextStyle(
-                                  color: Color(0xFF4CAF50),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                              decoration: BoxDecoration(
+                                color: (isActive ? const Color(0xFF4CAF50) : const Color(0xFFFF9800)).withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(8),
                               ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    isActive ? Icons.play_circle_filled : Icons.schedule,
+                                    color: isActive ? const Color(0xFF4CAF50) : const Color(0xFFFF9800),
+                                    size: 14,
+                                  ),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    info['statut']?.toString() ?? '—',
+                                    style: TextStyle(
+                                      color: isActive ? const Color(0xFF4CAF50) : const Color(0xFFFF9800),
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Text('TR-$id', style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            _buildInfoItem(Icons.access_time, heure.isNotEmpty ? heure : '--'),
+                            _buildInfoItem(Icons.location_on, secteur.isNotEmpty ? secteur : '—'),
+                            _buildInfoItem(Icons.people, '$visitesRealisees/$total visités'),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(6),
+                          child: LinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: const Color(0xFF1E1E2A),
+                            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF4433)),
+                            minHeight: 8,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Header liste
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text('Patients à visiter',
+                            style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF12121A),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF1E1E2A)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.sort, color: Color(0xFF6B6B7B), size: 16),
+                              const SizedBox(width: 6),
+                              Text('Par ordre', style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12)),
                             ],
                           ),
                         ),
                       ],
                     ),
-                    Text(
-                      'TR-2025-001',
-                      style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
-                  children: [
-                    _buildInfoItem(Icons.access_time, '08:00 - 12:00'),
-                    _buildInfoItem(Icons.location_on, 'Bastos - Nlongkak'),
-                    _buildInfoItem(Icons.people, '3/6 visités'),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(6),
-                  child: LinearProgressIndicator(
-                    value: 0.5,
-                    backgroundColor: const Color(0xFF1E1E2A),
-                    valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFFF4433)),
-                    minHeight: 8,
                   ),
-                ),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 12),
 
-          // Liste des patients
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Patients à visiter',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: _visites.isEmpty
+                        ? Center(
+                            child: Text(
+                              'Aucune visite dans cette tournée',
+                              style: TextStyle(color: Colors.white.withOpacity(0.5)),
+                            ),
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _visites.length,
+                            itemBuilder: (context, index) => _buildVisiteItem(_visites[index]),
+                          ),
                   ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF12121A),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: const Color(0xFF1E1E2A)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.sort, color: Color(0xFF6B6B7B), size: 16),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Par heure',
-                        style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              itemCount: patients.length,
-              itemBuilder: (context, index) {
-                final patient = patients[index];
-                return _buildPatientItem(
-                  context,
-                  nom: patient['nom'] as String,
-                  diagnostic: patient['diagnostic'] as String,
-                  quartier: patient['quartier'] as String,
-                  priorite: patient['priorite'] as String,
-                  heure: patient['heure'] as String,
-                  visite: patient['visite'] as bool,
-                  index: index + 1,
-                );
-              },
-            ),
-          ),
-        ],
-      ),
       bottomNavigationBar: Container(
         padding: const EdgeInsets.all(16),
         decoration: const BoxDecoration(
@@ -187,9 +242,9 @@ class TourneeDetailScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.pause, color: Color(0xFFFF4433)),
-                  label: const Text('Pause', style: TextStyle(color: Color(0xFFFF4433))),
+                  onPressed: _loadVisites,
+                  icon: const Icon(Icons.refresh, color: Color(0xFFFF4433)),
+                  label: const Text('Rafraîchir', style: TextStyle(color: Color(0xFFFF4433))),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: Color(0xFFFF4433)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -201,9 +256,9 @@ class TourneeDetailScreen extends StatelessWidget {
               Expanded(
                 flex: 2,
                 child: ElevatedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.navigation, color: Colors.white),
-                  label: const Text('Prochain patient', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const QrScanScreen())),
+                  icon: const Icon(Icons.qr_code_scanner, color: Colors.white),
+                  label: const Text('Scanner QR', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFFFF4433),
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -223,35 +278,28 @@ class TourneeDetailScreen extends StatelessWidget {
       children: [
         Icon(icon, size: 16, color: const Color(0xFF6B6B7B)),
         const SizedBox(width: 6),
-        Text(
-          text,
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+        Flexible(
+          child: Text(
+            text,
+            style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+            overflow: TextOverflow.ellipsis,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildPatientItem(
-    BuildContext context, {
-    required String nom,
-    required String diagnostic,
-    required String quartier,
-    required String priorite,
-    required String heure,
-    required bool visite,
-    required int index,
-  }) {
-    Color prioriteColor;
-    switch (priorite) {
-      case 'Critique':
-        prioriteColor = const Color(0xFFFF4433);
-        break;
-      case 'Surveillance':
-        prioriteColor = const Color(0xFFFF9800);
-        break;
-      default:
-        prioriteColor = const Color(0xFF4CAF50);
-    }
+  Widget _buildVisiteItem(Map<String, dynamic> v) {
+    final patient = v['patient'] as Map<String, dynamic>? ?? {};
+    final nom = '${patient['nom'] ?? ''} ${patient['prenom'] ?? ''}'.trim();
+    final diagnostic = (v['diagnostic']?.toString() ?? '—').trim();
+    final quartier = patient['ville']?.toString() ?? patient['adresse']?.toString().split(',').first ?? '—';
+    final priorite = _libellePriorite(v['priorite']?.toString());
+    final prioriteColor = _couleurPriorite(v['priorite']?.toString());
+    final heure = _formatHeure(v['heure_prevue']?.toString());
+    final isVisite = v['visite_at'] != null;
+    final ordre = v['ordre'] as int? ?? 0;
+    final actesCount = v['actes_count'] as int? ?? 0;
 
     return GestureDetector(
       onTap: () {
@@ -264,49 +312,44 @@ class TourneeDetailScreen extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: visite ? const Color(0xFF12121A).withOpacity(0.5) : const Color(0xFF12121A),
+          color: isVisite ? const Color(0xFF12121A).withOpacity(0.5) : const Color(0xFF12121A),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: visite ? const Color(0xFF4CAF50).withOpacity(0.3) : const Color(0xFF1E1E2A),
+            color: isVisite ? const Color(0xFF4CAF50).withOpacity(0.3) : const Color(0xFF1E1E2A),
           ),
         ),
         child: Row(
           children: [
-            // Numéro d'ordre
             Container(
               width: 32,
               height: 32,
               decoration: BoxDecoration(
-                color: visite ? const Color(0xFF4CAF50) : const Color(0xFF1E1E2A),
+                color: isVisite ? const Color(0xFF4CAF50) : const Color(0xFF1E1E2A),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Center(
-                child: visite
+                child: isVisite
                     ? const Icon(Icons.check, color: Colors.white, size: 18)
-                    : Text(
-                        '$index',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                    : Text('$ordre', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ),
             const SizedBox(width: 12),
-            // Infos patient
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      Text(
-                        nom,
-                        style: TextStyle(
-                          color: visite ? Colors.white.withOpacity(0.5) : Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                          decoration: visite ? TextDecoration.lineThrough : null,
+                      Flexible(
+                        child: Text(
+                          nom.isNotEmpty ? nom : 'Patient #${patient['id'] ?? '?'}',
+                          style: TextStyle(
+                            color: isVisite ? Colors.white.withOpacity(0.5) : Colors.white,
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            decoration: isVisite ? TextDecoration.lineThrough : null,
+                          ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
                       const SizedBox(width: 8),
@@ -318,11 +361,7 @@ class TourneeDetailScreen extends StatelessWidget {
                         ),
                         child: Text(
                           priorite,
-                          style: TextStyle(
-                            color: prioriteColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: TextStyle(color: prioriteColor, fontSize: 10, fontWeight: FontWeight.w600),
                         ),
                       ),
                     ],
@@ -330,10 +369,7 @@ class TourneeDetailScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     diagnostic,
-                    style: TextStyle(
-                      color: Colors.white.withOpacity(0.4),
-                      fontSize: 12,
-                    ),
+                    style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -342,36 +378,31 @@ class TourneeDetailScreen extends StatelessWidget {
                     children: [
                       Icon(Icons.location_on, size: 12, color: Colors.white.withOpacity(0.3)),
                       const SizedBox(width: 4),
-                      Text(
-                        quartier,
-                        style: TextStyle(
-                          color: Colors.white.withOpacity(0.3),
-                          fontSize: 11,
-                        ),
-                      ),
+                      Text(quartier, style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11)),
+                      if (actesCount > 0) ...[
+                        const SizedBox(width: 12),
+                        Icon(Icons.healing, size: 12, color: Colors.white.withOpacity(0.3)),
+                        const SizedBox(width: 4),
+                        Text('$actesCount actes', style: TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 11)),
+                      ],
                     ],
                   ),
                 ],
               ),
             ),
-            // Heure
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
                   heure,
                   style: TextStyle(
-                    color: visite ? Colors.white.withOpacity(0.4) : Colors.white,
+                    color: isVisite ? Colors.white.withOpacity(0.4) : Colors.white,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 4),
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.white.withOpacity(0.3),
-                  size: 20,
-                ),
+                Icon(Icons.chevron_right, color: Colors.white.withOpacity(0.3), size: 20),
               ],
             ),
           ],

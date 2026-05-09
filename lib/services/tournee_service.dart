@@ -212,4 +212,18 @@ class TourneeService {
       };
     }
   }
+
+
+  /// GET /api/tournees/{id}/visites
+  Future<Map<String, dynamic>> getTourneeVisites(int tourneeId) async {
+    try {
+      final response = await _apiService.get('/api/tournees/$tourneeId/visites');
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': response.data};
+      }
+      return {'success': false, 'message': 'Erreur HTTP ${response.statusCode}'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

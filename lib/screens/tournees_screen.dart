@@ -29,6 +29,20 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
     super.dispose();
   }
 
+
+  String _extractHeure(dynamic iso) {
+    if (iso == null) return '--:--';
+    final s = iso.toString();
+    if (s.isEmpty) return '--:--';
+    if (s.contains('T')) {
+      try {
+        final d = DateTime.parse(s).toLocal();
+        return '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
+      } catch (_) {}
+    }
+    return s.length >= 5 ? s.substring(0, 5) : s;
+  }
+
   Future<void> _loadTournees() async {
     setState(() => _isLoading = true);
     
@@ -91,9 +105,13 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
 
     return {
       'id': t['id'],
-      'titre': t['titre'] ?? 'Tournée sans titre',
-      'secteur': t['secteur'] ?? 'Secteur non défini',
-      'heure': '${t['heure_debut_prevue'] ?? '08:00'} - ${t['heure_fin_prevue'] ?? '12:00'}',
+      'titre': (t['notes']?.toString().isNotEmpty == true)
+          ? (t['notes'].toString().split('—').first.trim().isNotEmpty
+              ? t['notes'].toString().split('—').first.trim()
+              : 'Tournée du jour')
+          : 'Tournée du jour',
+      'secteur': (t['service']?['nom']?.toString() ?? t['vehicule']?.toString() ?? 'Secteur HAD'),
+      'heure': '${_extractHeure(t['heure_debut_prevue'])} - ${_extractHeure(t['heure_fin_prevue'])}',
       'statut': statut,
       'patients': t['patients_total'] ?? 0,
       'visites': t['patients_vus'] ?? 0,
@@ -251,6 +269,7 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
                             patients: tournee['patients'],
                             visites: tournee['visites'],
                             isActive: tournee['statut'] == 'En cours',
+                            tourneeMap: tournee,
                           );
                         },
                       ),
@@ -377,6 +396,7 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
     required int patients,
     required int visites,
     required bool isActive,
+    Map<String, dynamic>? tourneeMap,
   }) {
     Color statusColor;
     IconData statusIcon;
@@ -398,7 +418,18 @@ class _TourneesScreenState extends State<TourneesScreen> with SingleTickerProvid
       onTap: () {
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (_) => const TourneeDetailScreen()),
+          MaterialPageRoute(
+            builder: (_) => TourneeDetailScreen(
+              tourneeId: tourneeMap?['id'] is int ? tourneeMap!['id'] as int : int.tryParse(id),
+              tourneeInfo: tourneeMap ?? {
+                'id': id,
+                'titre': titre,
+                'secteur': secteur,
+                'heure': heure,
+                'statut': status,
+              },
+            ),
+          ),
         );
       },
       child: Container(
