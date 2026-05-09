@@ -105,9 +105,9 @@ class ApiConfig {
   static String adminRole(int id) => '$apiBaseUrl/roles/$id';
   
   // Configuration des timeouts
-  static const Duration connectTimeout = Duration(seconds: 10);
-  static const Duration receiveTimeout = Duration(seconds: 10);
-  static const Duration sendTimeout = Duration(seconds: 10);
+  static const Duration connectTimeout = Duration(seconds: 60);
+  static const Duration receiveTimeout = Duration(seconds: 60);
+  static const Duration sendTimeout = Duration(seconds: 60);
   
   // Headers par défaut
   static const Map<String, String> defaultHeaders = {

@@ -5,62 +5,40 @@ class VisiteService {
   static final VisiteService _instance = VisiteService._internal();
   factory VisiteService() => _instance;
   VisiteService._internal();
-
   final ApiService _apiService = ApiService();
 
-  /// Envoyer la réalisation d'une visite avec les données multipart
+  /// Envoyer la réalisation d'une visite avec multipart.
   Future<Map<String, dynamic>> envoyerRealisationVisite(int visiteId, FormData data) async {
     try {
       final response = await _apiService.dio.post(
         '/api/had/visites/$visiteId/realisation',
         data: data,
         options: Options(
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
+          headers: {'Content-Type': 'multipart/form-data'},
+          // Augmente les timeouts pour les uploads multipart avec photos
+          sendTimeout: const Duration(seconds: 60),
+          receiveTimeout: const Duration(seconds: 60),
         ),
       );
 
-      if (response.statusCode == 200) {
-        return response.data;
-      } else {
-        throw Exception('Erreur lors de l\'envoi de la réalisation: ${response.statusCode}');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return Map<String, dynamic>.from(response.data ?? {});
       }
+      throw Exception('Erreur HTTP ${response.statusCode}');
     } on DioException catch (e) {
-      if (e.response?.data != null && e.response!.data['message'] != null) {
-        throw Exception(e.response!.data['message']);
-      }
-      throw Exception('Erreur réseau: ${e.message}');
-    } catch (e) {
-      throw Exception('Erreur inattendue: $e');
+      final msg = e.response?.data?['message'] ?? 'Erreur réseau : ${e.message ?? "inconnue"}';
+      throw Exception(msg);
     }
   }
 
-  /// Tenter d'envoyer les données avec retry et backoff
+  /// Pas de retry pour le moment (FormData ne peut pas être réutilisé).
+  /// Si retry nécessaire, le caller doit reconstruire le FormData.
   Future<Map<String, dynamic>> envoyerRealisationVisiteAvecRetry(
-    int visiteId, 
+    int visiteId,
     FormData data, {
-    int maxRetries = 3,
+    int maxRetries = 1,
     Duration initialDelay = const Duration(seconds: 1),
   }) async {
-    int attempts = 0;
-    Duration delay = initialDelay;
-
-    while (attempts < maxRetries) {
-      try {
-        return await envoyerRealisationVisite(visiteId, data);
-      } catch (e) {
-        attempts++;
-        if (attempts >= maxRetries) {
-          rethrow;
-        }
-        
-        // Attendre avec backoff exponentiel
-        await Future.delayed(delay);
-        delay = delay * 2; // Backoff exponentiel
-      }
-    }
-    
-    throw Exception('Échec après $maxRetries tentatives');
+    return envoyerRealisationVisite(visiteId, data);
   }
 }

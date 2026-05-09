@@ -288,7 +288,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
       // Préparer les données multipart
       final formData = FormData.fromMap({
         // Actes réalisés
-        'actes_realises': actesRealisesList.map((acte) => {
+        'actes': actesRealisesList.map((acte) => {
           'id': acte['id'],
           'libelle': acte['libelle'],
           'observations': acte['observations'],
