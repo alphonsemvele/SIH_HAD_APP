@@ -1,181 +1,89 @@
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:dio/dio.dart';
 import 'api_service.dart';
-import '../config/api_config.dart';
 
 class AuthService {
+  static final AuthService _instance = AuthService._internal();
+  factory AuthService() => _instance;
+  AuthService._internal();
   final ApiService _apiService = ApiService();
 
-  // Login
+  /// POST /api/login → { success, token, user }
   Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       final response = await _apiService.post(
-        ApiConfig.auth,
-        data: {
-          'email': email,
-          'password': password,
-        },
+        '/api/login',
+        data: {'email': email, 'password': password},
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
-        
-        if (data['success'] == true) {
-          final token = data['data']['token'];
-          final userData = data['data']['user'];
-          
-          // Sauvegarder le token Sanctum et les infos utilisateur
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('auth_token', token);
-          await prefs.setString('user_email', userData['email']);
-          await prefs.setString('user_name', userData['name']);
-          await prefs.setString('user_role', userData['role']);
-          await prefs.setBool('is_logged_in', true);
-          await prefs.setString('user', userData.toString());
-          
-          // Mettre à jour le token dans ApiService pour les futures requêtes
-          await _apiService.setAuthToken(token);
-          
-          return {
-            'success': true,
-            'data': userData,
-            'message': data['message'] ?? 'Connexion réussie',
-          };
-        } else {
-          return {
-            'success': false,
-            'message': data['message'] ?? 'Erreur lors de la connexion',
-          };
+        // Extraire token (peut être à la racine ou dans data)
+        String? token = data['token']?.toString()
+            ?? data['data']?['token']?.toString();
+        Map<String, dynamic>? user;
+        if (data['user'] != null) {
+          user = Map<String, dynamic>.from(data['user']);
+        } else if (data['data']?['user'] != null) {
+          user = Map<String, dynamic>.from(data['data']['user']);
         }
-      } else if (response.statusCode == 422) {
-        // Erreur de validation
-        String errorMessage = 'Erreur de validation:';
-        final errors = response.data['errors'] ?? {};
-        errors.forEach((field, messages) {
-          errorMessage += '\n• ${messages.join(', ')}';
-        });
+
+        if (token != null) {
+          await _apiService.setAuthToken(token);
+        }
+
         return {
-          'success': false,
-          'message': errorMessage,
-        };
-      } else if (response.statusCode == 401) {
-        return {
-          'success': false,
-          'message': 'Email ou mot de passe incorrect',
+          'success': true,
+          'token': token,
+          'user': user,
+          'message': 'Connexion réussie',
         };
       } else {
         return {
           'success': false,
-          'message': 'Erreur HTTP ${response.statusCode}: ${response.data['message'] ?? 'Erreur inconnue'}',
+          'message': 'Erreur HTTP ${response.statusCode}',
         };
       }
+    } on DioException catch (e) {
+      final msg = e.response?.data?['message']
+          ?? e.response?.data?['error']
+          ?? 'Identifiants incorrects';
+      return {'success': false, 'message': msg.toString()};
     } catch (e) {
-      return {
-        'success': false,
-        'message': e.toString(),
-      };
+      return {'success': false, 'message': 'Erreur : $e'};
     }
   }
 
-  // Logout
-  Future<Map<String, dynamic>> logout() async {
+  /// POST /api/logout
+  Future<bool> logout() async {
     try {
-      final response = await _apiService.post(ApiConfig.logout);
-      
-      // Nettoyer le stockage local
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('auth_token');
-      await prefs.remove('user_email');
-      await prefs.remove('user_name');
-      await prefs.remove('user_role');
-      await prefs.setBool('is_logged_in', false);
-      await prefs.remove('user');
-      
-      // Nettoyer le token dans ApiService
+      await _apiService.post('/api/logout');
       await _apiService.setAuthToken(null);
-      
-      return {
-        'success': true,
-        'message': 'Déconnexion réussie',
-      };
-    } catch (e) {
-      // Même si l'API échoue, on nettoie le stockage local
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('auth_token');
-      await prefs.remove('user_email');
-      await prefs.remove('user_name');
-      await prefs.remove('user_role');
-      await prefs.setBool('is_logged_in', false);
-      await prefs.remove('user');
-      
-      // Nettoyer le token dans ApiService
-      await _apiService.setAuthToken(null);
-      
-      return {
-        'success': true,
-        'message': 'Déconnexion locale réussie',
-      };
+      return true;
+    } catch (_) {
+      try { await _apiService.setAuthToken(null); } catch (_) {}
+      return false;
     }
   }
 
-  // Vérifier si l'utilisateur est connecté
-  Future<bool> isLoggedIn() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-    final email = prefs.getString('user_email');
-    return isLoggedIn && email != null && email.isNotEmpty;
-  }
-
-  // Obtenir le token
-  Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('auth_token');
-  }
-
-  // Obtenir les infos utilisateur
-  Future<Map<String, dynamic>?> getUser() async {
-    final prefs = await SharedPreferences.getInstance();
-    final email = prefs.getString('user_email');
-    final isLoggedIn = prefs.getBool('is_logged_in') ?? false;
-    
-    if (isLoggedIn && email != null) {
-      return {
-        'email': email,
-        'name': 'Anne Ngo Likeng', // À adapter dynamiquement
-        'role': 'infirmiere',
-      };
-    }
+  /// GET /api/me → user complet
+  Future<Map<String, dynamic>?> getMe() async {
+    try {
+      final res = await _apiService.get('/api/me');
+      if (res.statusCode == 200) {
+        return Map<String, dynamic>.from(res.data['data']?['user'] ?? {});
+      }
+    } catch (_) {}
     return null;
   }
 
-  // Rafraîchir le token (si votre backend le supporte)
-  Future<Map<String, dynamic>> refreshToken() async {
+  /// GET /api/me/stats → stats personnelles
+  Future<Map<String, dynamic>?> getStats() async {
     try {
-      final response = await _apiService.post('${ApiConfig.baseUrl}/refresh-token');
-      
-      if (response.statusCode == 200) {
-        final data = response.data;
-        final prefs = await SharedPreferences.getInstance();
-        
-        if (data['token'] != null) {
-          await prefs.setString('auth_token', data['token']);
-        }
-        
-        return {
-          'success': true,
-          'token': data['token'],
-        };
-      } else {
-        return {
-          'success': false,
-          'message': 'Impossible de rafraîchir le token',
-        };
+      final res = await _apiService.get('/api/me/stats');
+      if (res.statusCode == 200) {
+        return Map<String, dynamic>.from(res.data['data'] ?? {});
       }
-    } catch (e) {
-      return {
-        'success': false,
-        'message': e.toString(),
-      };
-    }
+    } catch (_) {}
+    return null;
   }
 }
