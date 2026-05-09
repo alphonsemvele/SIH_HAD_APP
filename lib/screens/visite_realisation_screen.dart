@@ -324,17 +324,58 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Visite enregistrée avec succès'),
-            backgroundColor: Colors.green,
+        final int visiteId = (widget.visite['id'] is int)
+            ? widget.visite['id'] as int
+            : int.tryParse(widget.visite['id'].toString()) ?? 0;
+
+        // Délai pour laisser le job preuve PDF se générer côté backend
+        await Future.delayed(const Duration(milliseconds: 1500));
+
+        if (!mounted) return;
+
+        await showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            icon: const Icon(Icons.check_circle, color: Colors.green, size: 56),
+            title: const Text('Visite enregistrée'),
+            content: const Text(
+              'La preuve PDF (signée et horodatée) a été générée. Vous pouvez la consulter ou y revenir plus tard.',
+              textAlign: TextAlign.center,
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(ctx).pop();
+                  Navigator.of(context).pushNamedAndRemoveUntil('/tournees', (r) => false);
+                },
+                child: const Text('Plus tard'),
+              ),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.picture_as_pdf),
+                label: const Text('Voir la preuve PDF'),
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () async {
+                  try {
+                    await VisiteService().telechargerEtOuvrirPreuve(visiteId);
+                    if (ctx.mounted) Navigator.of(ctx).pop();
+                    if (context.mounted) {
+                      Navigator.of(context).pushNamedAndRemoveUntil('/tournees', (r) => false);
+                    }
+                  } catch (e) {
+                    if (ctx.mounted) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        SnackBar(
+                          content: Text('Erreur PDF : $e'),
+                          backgroundColor: Colors.orange,
+                        ),
+                      );
+                    }
+                  }
+                },
+              ),
+            ],
           ),
-        );
-        
-        // Retour à l'écran des tournées
-        Navigator.of(context).pushNamedAndRemoveUntil(
-          '/tournees',
-          (Route<dynamic> route) => false,
         );
       }
     } catch (e) {
