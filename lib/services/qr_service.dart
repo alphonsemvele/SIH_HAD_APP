@@ -5,34 +5,43 @@ class QrService {
   static final QrService _instance = QrService._internal();
   factory QrService() => _instance;
   QrService._internal();
-
   final ApiService _apiService = ApiService();
 
-  /// Scanner un QR code et récupérer les informations de la visite
-  Future<Map<String, dynamic>> scanQrCode(String payload, {double? lat, double? lng}) async {
+  Future<Map<String, dynamic>> scanQrCode(
+    String scannedText, {
+    double? lat,
+    double? lng,
+    int? precisionM,
+    Map<String, dynamic>? deviceInfo,
+  }) async {
     try {
-      final Map<String, dynamic> data = {
-        'payload': payload,
-        if (lat != null) 'latitude': lat,
-        if (lng != null) 'longitude': lng,
+      String uuid = scannedText.trim();
+      if (uuid.contains('/qr/')) {
+        uuid = uuid.substring(uuid.lastIndexOf('/qr/') + 4);
+      }
+      if (uuid.contains('?')) {
+        uuid = uuid.substring(0, uuid.indexOf('?'));
+      }
+
+      final body = <String, dynamic>{
+        if (lat != null) 'lat': lat,
+        if (lng != null) 'lng': lng,
+        if (precisionM != null) 'precision_m': precisionM,
+        if (deviceInfo != null) 'device_info': deviceInfo,
       };
 
-      // Pour l'instant, on utilise le payload directement
-      // TODO: Adapter l'endpoint backend quand il sera prêt
-      final response = await _apiService.post('/api/had/qr-codes/scan-from-payload', data: data);
-      
+      final response = await _apiService.post(
+        '/api/had/qr-codes/$uuid/scan',
+        data: body,
+      );
+
       if (response.statusCode == 200) {
-        return response.data;
-      } else {
-        throw Exception('Erreur lors du scan du QR code: ${response.statusCode}');
+        return Map<String, dynamic>.from(response.data);
       }
+      throw Exception('Scan échoué : HTTP ${response.statusCode}');
     } on DioException catch (e) {
-      if (e.response?.data != null && e.response!.data['message'] != null) {
-        throw Exception(e.response!.data['message']);
-      }
-      throw Exception('Erreur réseau: ${e.message}');
-    } catch (e) {
-      throw Exception('Erreur inattendue: $e');
+      final msg = e.response?.data?['message'] ?? 'Erreur réseau : ${e.message}';
+      throw Exception(msg);
     }
   }
 }

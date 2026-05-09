@@ -299,7 +299,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
         'ta_systolique': _taSystoliqueController.text.isNotEmpty ? _taSystoliqueController.text : null,
         'ta_diastolique': _taDiastoliqueController.text.isNotEmpty ? _taDiastoliqueController.text : null,
         'fc': _fcController.text.isNotEmpty ? _fcController.text : null,
-        't': _temperatureController.text.isNotEmpty ? _temperatureController.text : null,
+        'temperature': _temperatureController.text.isNotEmpty ? _temperatureController.text : null,
         'spo2': _spo2Controller.text.isNotEmpty ? _spo2Controller.text : null,
         'glycemie': _glycemieController.text.isNotEmpty ? _glycemieController.text : null,
         'eva_douleur': _evaController.text.isNotEmpty ? _evaController.text : null,
