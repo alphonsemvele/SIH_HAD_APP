@@ -471,7 +471,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => PatientDetailScreen(nom: patient['nom']),
+            builder: (_) => PatientDetailScreen(nom: patient['nom']?.toString(), patient: Map<String, dynamic>.from(patient)),
           ),
         );
       },

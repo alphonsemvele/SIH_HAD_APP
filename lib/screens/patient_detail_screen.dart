@@ -2,32 +2,97 @@ import 'package:flutter/material.dart';
 import 'saisie_constantes_screen.dart';
 
 class PatientDetailScreen extends StatelessWidget {
-  final String nom;
+  /// Compatibilité ancienne signature : on peut passer juste le nom
+  final String? nom;
+  /// Nouvelle signature : passer le Map patient complet (recommandé)
+  final Map<String, dynamic>? patient;
 
-  const PatientDetailScreen({super.key, required this.nom});
+  const PatientDetailScreen({super.key, this.nom, this.patient});
+
+  // ────────────── Helpers extraction patient ──────────────
+
+  String _nomComplet() {
+    if (patient != null) {
+      final n = patient!['nom']?.toString() ?? '';
+      final p = patient!['prenom']?.toString() ?? '';
+      return '$n $p'.trim().isEmpty ? (nom ?? 'Patient') : '$n $p'.trim();
+    }
+    return nom ?? 'Patient';
+  }
+
+  String _initiales() {
+    final parts = _nomComplet().split(' ').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return '?';
+    return parts.map((e) => e[0]).take(2).join().toUpperCase();
+  }
+
+  int _age() {
+    if (patient?['date_naissance'] == null) return 0;
+    try {
+      final dob = DateTime.parse(patient!['date_naissance'].toString());
+      final now = DateTime.now();
+      int age = now.year - dob.year;
+      if (now.month < dob.month || (now.month == dob.month && now.day < dob.day)) age--;
+      return age;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  String _sexe() {
+    final s = patient?['sexe']?.toString().toUpperCase() ?? '';
+    return s == 'F' ? 'Féminin' : (s == 'M' ? 'Masculin' : '—');
+  }
+
+  String _quartier() {
+    return patient?['quartier']?.toString() ?? patient?['ville']?.toString() ?? '—';
+  }
+
+  String _diagnostic() {
+    // Concaténer antécédents médicaux + diagnostic explicite si présent
+    final antc = patient?['antecedents_medicaux'];
+    if (antc is List && antc.isNotEmpty) {
+      return antc.take(2).join(' • ');
+    }
+    final diag = patient?['diagnostic']?.toString();
+    if (diag != null && diag.isNotEmpty) return diag;
+    return 'Suivi médical';
+  }
+
+  String _priorite() {
+    final p = patient?['priorite']?.toString().toLowerCase() ?? '';
+    return switch (p) {
+      'critique' => 'Critique',
+      'surveillance' => 'Surveillance',
+      _ => 'Standard',
+    };
+  }
+
+  Color _prioriteColor() {
+    final p = patient?['priorite']?.toString().toLowerCase() ?? '';
+    return switch (p) {
+      'critique' => const Color(0xFFFF4433),
+      'surveillance' => const Color(0xFFFF9800),
+      _ => const Color(0xFF4CAF50),
+    };
+  }
+
+  String _telephone() {
+    return patient?['telephone']?.toString() ?? patient?['telephone_urgence']?.toString() ?? '';
+  }
+
+  List<String> _allergies() {
+    final a = patient?['allergies'];
+    if (a is List) return a.map((e) => e.toString()).toList();
+    return [];
+  }
+
+  // ────────────── Build ──────────────
 
   @override
   Widget build(BuildContext context) {
-    final constantes = {
-      'temperature': '36.8°C',
-      'tension': '145/92 mmHg',
-      'pouls': '78 bpm',
-      'saturation': '96%',
-      'glycemie': '1.12 g/L',
-      'date': 'Aujourd\'hui, 08:30',
-    };
-
-    final traitements = [
-      {'nom': 'Furosémide 40mg', 'posologie': '1 comprimé le matin', 'duree': 'Continu'},
-      {'nom': 'Ramipril 5mg', 'posologie': '1 comprimé le matin', 'duree': 'Continu'},
-      {'nom': 'Bisoprolol 2.5mg', 'posologie': '1 comprimé le matin', 'duree': 'Continu'},
-    ];
-
-    final historique = [
-      {'date': '27/01/2025', 'type': 'Visite', 'note': 'Tension stable. Patient en bonne forme.'},
-      {'date': '25/01/2025', 'type': 'Visite', 'note': 'Légère dyspnée à l\'effort.'},
-      {'date': '22/01/2025', 'type': 'Urgence', 'note': 'Œdèmes importants. Ajustement diurétiques.'},
-    ];
+    final pColor = _prioriteColor();
+    final allergies = _allergies();
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
@@ -35,7 +100,7 @@ class PatientDetailScreen extends StatelessWidget {
         slivers: [
           SliverAppBar(
             backgroundColor: const Color(0xFF0A0A0F),
-            expandedHeight: 200,
+            expandedHeight: 220,
             pinned: true,
             leading: IconButton(
               icon: Container(
@@ -49,17 +114,26 @@ class PatientDetailScreen extends StatelessWidget {
               onPressed: () => Navigator.pop(context),
             ),
             actions: [
-              IconButton(
-                icon: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF12121A),
-                    borderRadius: BorderRadius.circular(10),
+              if (_telephone().isNotEmpty)
+                IconButton(
+                  icon: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF12121A),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.phone, color: Color(0xFF4CAF50), size: 20),
                   ),
-                  child: const Icon(Icons.phone, color: Color(0xFF4CAF50), size: 20),
+                  onPressed: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Appel : ${_telephone()}'),
+                        backgroundColor: const Color(0xFF4CAF50),
+                        duration: const Duration(seconds: 2),
+                      ),
+                    );
+                  },
                 ),
-                onPressed: () {},
-              ),
               const SizedBox(width: 8),
             ],
             flexibleSpace: FlexibleSpaceBar(
@@ -68,10 +142,7 @@ class PatientDetailScreen extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      const Color(0xFFFF4433).withOpacity(0.3),
-                      const Color(0xFF0A0A0F),
-                    ],
+                    colors: [pColor.withOpacity(0.3), const Color(0xFF0A0A0F)],
                   ),
                 ),
                 child: Column(
@@ -82,39 +153,31 @@ class PatientDetailScreen extends StatelessWidget {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9800).withOpacity(0.2),
+                        color: pColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Center(
                         child: Text(
-                          nom.split(' ').map((e) => e[0]).take(2).join(),
-                          style: const TextStyle(
-                            color: Color(0xFFFF9800),
-                            fontSize: 28,
-                            fontWeight: FontWeight.bold,
-                          ),
+                          _initiales(),
+                          style: TextStyle(color: pColor, fontSize: 28, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      nom,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                      ),
+                      _nomComplet(),
+                      style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 4),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: const Color(0xFFFF9800).withOpacity(0.2),
+                        color: pColor.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Text(
-                        'Surveillance',
-                        style: TextStyle(color: Color(0xFFFF9800), fontSize: 12, fontWeight: FontWeight.w600),
+                      child: Text(
+                        _priorite(),
+                        style: TextStyle(color: pColor, fontSize: 12, fontWeight: FontWeight.w600),
                       ),
                     ),
                   ],
@@ -140,87 +203,133 @@ class PatientDetailScreen extends StatelessWidget {
                       children: [
                         Row(
                           children: [
-                            _buildInfoChip(Icons.cake, '67 ans'),
+                            _buildInfoChip(Icons.cake, _age() > 0 ? '${_age()} ans' : '— ans'),
                             const SizedBox(width: 10),
-                            _buildInfoChip(Icons.person, 'Masculin'),
+                            _buildInfoChip(Icons.person, _sexe()),
                             const SizedBox(width: 10),
-                            _buildInfoChip(Icons.location_on, 'Bastos'),
+                            Expanded(child: _buildInfoChip(Icons.location_on, _quartier())),
                           ],
                         ),
                         const SizedBox(height: 12),
-                        Divider(color: const Color(0xFF1E1E2A)),
+                        const Divider(color: Color(0xFF1E1E2A)),
                         const SizedBox(height: 12),
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             const Icon(Icons.medical_services, color: Color(0xFFFF4433), size: 18),
                             const SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Insuffisance cardiaque - Suivi post-hospitalisation',
-                                style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 13),
+                                _diagnostic(),
+                                style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13),
                               ),
                             ),
                           ],
                         ),
+                        if (allergies.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Icon(Icons.warning, color: Color(0xFFFF9800), size: 18),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  'Allergies : ${allergies.join(", ")}',
+                                  style: const TextStyle(color: Color(0xFFFF9800), fontSize: 13, fontWeight: FontWeight.w600),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),
                   const SizedBox(height: 20),
 
-                  // Constantes
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  // Constantes (placeholder - pas encore branché vrai backend)
+                  const Row(
                     children: [
-                      const Text('Dernières constantes', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                      Text(constantes['date']!, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 12)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    crossAxisCount: 3,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 1.1,
-                    children: [
-                      _buildConstanteCard('Température', constantes['temperature']!, Icons.thermostat, const Color(0xFFFF9800)),
-                      _buildConstanteCard('Tension', constantes['tension']!, Icons.favorite, const Color(0xFFFF4433)),
-                      _buildConstanteCard('Pouls', constantes['pouls']!, Icons.monitor_heart, const Color(0xFF4CAF50)),
-                      _buildConstanteCard('SpO2', constantes['saturation']!, Icons.air, const Color(0xFF2196F3)),
-                      _buildConstanteCard('Glycémie', constantes['glycemie']!, Icons.water_drop, const Color(0xFF9C27B0)),
-                      GestureDetector(
-                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SaisieConstantesScreen(patientNom: nom))),
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFF4433).withOpacity(0.15),
-                            borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: const Color(0xFFFF4433).withOpacity(0.3)),
-                          ),
-                          child: const Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.add_circle, color: Color(0xFFFF4433), size: 28),
-                              SizedBox(height: 6),
-                              Text('Saisir', style: TextStyle(color: Color(0xFFFF4433), fontSize: 12, fontWeight: FontWeight.w600)),
-                            ],
-                          ),
-                        ),
+                      Text(
+                        'Dernières constantes',
+                        style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF12121A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF1E1E2A)),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.monitor_heart, size: 40, color: Colors.white.withOpacity(0.3)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Aucune constante saisie',
+                          style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 14),
+                        ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => SaisieConstantesScreen(patientNom: _nomComplet()),
+                            ),
+                          ),
+                          icon: const Icon(Icons.add, color: Colors.white, size: 16),
+                          label: const Text('Saisir des constantes', style: TextStyle(color: Colors.white)),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFFF4433),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
                   const SizedBox(height: 24),
 
-                  // Traitements
-                  const Text('Traitements en cours', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
-                  ...traitements.map((t) => _buildTraitementItem(t)),
-                  const SizedBox(height: 24),
+                  // Antécédents (depuis patient.antecedents_medicaux)
+                  if (patient?['antecedents_medicaux'] is List &&
+                      (patient!['antecedents_medicaux'] as List).isNotEmpty) ...[
+                    const Text(
+                      'Antécédents médicaux',
+                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    ...(patient!['antecedents_medicaux'] as List).map((a) => _buildAntecedentItem(a.toString())),
+                    const SizedBox(height: 24),
+                  ],
 
-                  // Historique
-                  const Text('Historique des visites', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  // Coordonnées
+                  const Text(
+                    'Coordonnées',
+                    style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 12),
-                  ...historique.map((h) => _buildHistoriqueItem(h)),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF12121A),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF1E1E2A)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (_telephone().isNotEmpty) _kvRow(Icons.phone, 'Téléphone', _telephone()),
+                        if (patient?['adresse'] != null) _kvRow(Icons.home, 'Adresse', patient!['adresse'].toString()),
+                        if (patient?['email'] != null && patient!['email'].toString().isNotEmpty)
+                          _kvRow(Icons.email, 'Email', patient!['email'].toString()),
+                        if (patient?['nationalite'] != null)
+                          _kvRow(Icons.flag, 'Nationalité', patient!['nationalite'].toString()),
+                      ],
+                    ),
+                  ),
                   const SizedBox(height: 100),
                 ],
               ),
@@ -236,9 +345,15 @@ class PatientDetailScreen extends StatelessWidget {
         ),
         child: SafeArea(
           child: ElevatedButton.icon(
-            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => SaisieConstantesScreen(patientNom: nom))),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (_) => SaisieConstantesScreen(patientNom: _nomComplet())),
+            ),
             icon: const Icon(Icons.edit_note, color: Colors.white),
-            label: const Text('Saisir les constantes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+            label: const Text(
+              'Saisir les constantes',
+              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
+            ),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFFF4433),
               padding: const EdgeInsets.symmetric(vertical: 16),
@@ -253,113 +368,74 @@ class PatientDetailScreen extends StatelessWidget {
   Widget _buildInfoChip(IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E2A), borderRadius: BorderRadius.circular(8)),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1E1E2A),
+        borderRadius: BorderRadius.circular(8),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 14, color: const Color(0xFF6B6B7B)),
+          Icon(icon, size: 14, color: Colors.white.withOpacity(0.5)),
           const SizedBox(width: 6),
-          Text(text, style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12)),
+          Flexible(
+            child: Text(
+              text,
+              style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12),
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildConstanteCard(String label, String value, IconData icon, Color color) {
+  Widget _buildAntecedentItem(String text) {
     return Container(
+      margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: const Color(0xFF12121A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFF1E1E2A)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(height: 8),
-          Text(value, style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-          Text(label, style: TextStyle(color: Colors.white.withOpacity(0.4), fontSize: 10)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTraitementItem(Map<String, String> t) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12121A),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFF1E1E2A)),
       ),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(color: const Color(0xFF4CAF50).withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.medication, color: Color(0xFF4CAF50), size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(t['nom']!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
-                Text(t['posologie']!, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHistoriqueItem(Map<String, String> h) {
-    final isUrgence = h['type'] == 'Urgence';
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFF12121A),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isUrgence ? const Color(0xFFFF4433).withOpacity(0.3) : const Color(0xFF1E1E2A)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
+            padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: isUrgence ? const Color(0xFFFF4433).withOpacity(0.15) : const Color(0xFF1E1E2A),
-              borderRadius: BorderRadius.circular(8),
+              color: const Color(0xFFFF4433).withOpacity(0.15),
+              borderRadius: BorderRadius.circular(6),
             ),
-            child: Icon(isUrgence ? Icons.warning : Icons.calendar_today, color: isUrgence ? const Color(0xFFFF4433) : const Color(0xFF6B6B7B), size: 16),
+            child: const Icon(Icons.history, color: Color(0xFFFF4433), size: 14),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Text(h['date']!, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isUrgence ? const Color(0xFFFF4433).withOpacity(0.2) : const Color(0xFF1E1E2A),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(h['type']!, style: TextStyle(color: isUrgence ? const Color(0xFFFF4433) : Colors.white.withOpacity(0.5), fontSize: 10)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(h['note']!, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
-              ],
+            child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 13)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _kvRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: Colors.white.withOpacity(0.5)),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 13),
             ),
           ),
         ],
