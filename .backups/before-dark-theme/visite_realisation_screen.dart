@@ -205,7 +205,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
                       controller: _signatureController,
                       width: double.infinity,
                       height: double.infinity,
-                      backgroundColor: const Color(0xFF12121A),
+                      backgroundColor: Colors.white,
                     ),
                   ),
                 ),
@@ -400,7 +400,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF4433),
         title: Text('Visite - ${widget.visite['patient_nom'] ?? 'Patient'}'),
@@ -435,7 +435,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
           ),
           if (_isLoading)
             Container(
-              color: Colors.white.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.5),
               child: const Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -484,7 +484,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
         style: const TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.bold,
-          color: Colors.white,
+          color: Color(0xFF1A1A2E),
         ),
       ),
     );
@@ -498,7 +498,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -531,7 +531,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        border: Border.all(color: Color(0xFF1E1E2A)),
+        border: Border.all(color: Colors.grey.shade300),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -604,7 +604,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -712,7 +712,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -798,7 +798,7 @@ class _VisiteRealisationScreenState extends State<VisiteRealisationScreen> {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.white.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),

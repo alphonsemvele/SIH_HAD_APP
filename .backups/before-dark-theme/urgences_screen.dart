@@ -74,7 +74,7 @@ class _UrgencesScreenState extends State<UrgencesScreen> {
     final urgences = _alertes.map((alerte) => _mapAlerteFromApi(alerte)).toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF4433),
         elevation: 0,
@@ -191,12 +191,12 @@ class _UrgencesScreenState extends State<UrgencesScreen> {
                                 Icon(
                                   Icons.notifications_off,
                                   size: 48,
-                                  color: Colors.white60,
+                                  color: Colors.grey.shade400,
                                 ),
                                 const SizedBox(height: 12),
                                 Text(
                                   'Aucune alerte pour le moment',
-                                  style: TextStyle(color: Colors.white70),
+                                  style: TextStyle(color: Colors.grey.shade600),
                                 ),
                               ],
                             ),
@@ -251,7 +251,7 @@ class _UrgencesScreenState extends State<UrgencesScreen> {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: const Color(0xFF12121A),
+        color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: cardColor.withOpacity(0.3), width: 2),
         boxShadow: [
@@ -297,11 +297,11 @@ class _UrgencesScreenState extends State<UrgencesScreen> {
                   ),
                 ),
                 const Spacer(),
-                Icon(Icons.access_time, size: 14, color: Colors.white60),
+                Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
                 const SizedBox(width: 4),
                 Text(
                   urgence['heure'],
-                  style: TextStyle(color: Colors.white70, fontSize: 12),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
                 ),
               ],
             ),
@@ -339,7 +339,7 @@ class _UrgencesScreenState extends State<UrgencesScreen> {
                           Text(
                             urgence['nom'],
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: Color(0xFF1A1A2E),
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -347,7 +347,7 @@ class _UrgencesScreenState extends State<UrgencesScreen> {
                           Text(
                             '${urgence['age']} ans • ${urgence['quartier']}',
                             style: TextStyle(
-                              color: Colors.white70,
+                              color: Colors.grey.shade600,
                               fontSize: 13,
                             ),
                           ),
@@ -384,7 +384,7 @@ class _UrgencesScreenState extends State<UrgencesScreen> {
                 const SizedBox(height: 8),
                 Text(
                   urgence['diagnostic'],
-                  style: TextStyle(color: Colors.white70, fontSize: 13),
+                  style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                 ),
                 const SizedBox(height: 16),
                 Row(

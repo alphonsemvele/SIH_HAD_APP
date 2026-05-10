@@ -10,8 +10,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController(text: 'anne.ngo@had.com');
-  final _passwordController = TextEditingController(text: 'password');
+  final _emailController = TextEditingController(text: 'infirmier@sih.local');
+  final _passwordController = TextEditingController(text: 'demo123');
   bool _obscurePassword = true;
   bool _isLoading = false;
   final AuthService _authService = AuthService();
@@ -273,7 +273,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       Icon(Icons.apartment, color: Colors.white.withOpacity(0.5), size: 20),
                       const SizedBox(width: 10),
                       Text(
-                        'Hôpital Central de Yaoundé',
+                        'SIH/HAD - Démo Ségur',
                         style: TextStyle(
                           color: Colors.white.withOpacity(0.5),
                           fontSize: 13,

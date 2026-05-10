@@ -121,7 +121,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF4433),
         elevation: 0,
@@ -170,7 +170,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -182,7 +182,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                     const Text(
                       'Informations générales',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF1A1A2E),
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -236,7 +236,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -248,7 +248,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                     const Text(
                       'Planning',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF1A1A2E),
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -311,7 +311,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -323,7 +323,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                       const Text(
                         'Détails de la tournée',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFF1A1A2E),
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -351,7 +351,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.white.withOpacity(0.05),
+                        color: Colors.black.withOpacity(0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       ),
@@ -363,7 +363,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                       const Text(
                         'Lieu',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: Color(0xFF1A1A2E),
                           fontSize: 18,
                           fontWeight: FontWeight.w600,
                         ),
@@ -407,7 +407,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -417,19 +417,19 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Color(0xFF1A1A2E)),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white60),
+            hintStyle: TextStyle(color: Colors.grey.shade400),
             filled: true,
-            fillColor: const Color(0xFF1E1E2A),
+            fillColor: const Color(0xFFF5F5F5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Color(0xFF1E1E2A)),
+              borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Color(0xFF1E1E2A)),
+              borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -459,7 +459,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -469,14 +469,14 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2A),
+            color: const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Color(0xFF1E1E2A)),
+            border: Border.all(color: Colors.grey.shade300),
           ),
           child: DropdownButton<String>(
             value: value,
             dropdownColor: Colors.white,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Color(0xFF1A1A2E)),
             isExpanded: true,
             underline: Container(),
             items: items.map((String item) {

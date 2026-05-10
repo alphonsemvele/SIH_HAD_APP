@@ -90,18 +90,18 @@ class _PlanningScreenState extends State<PlanningScreen> {
     final events = _eventsForDay(_selectedDay);
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF12121A),
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A1A2E)),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Planning',
           style: TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -110,10 +110,10 @@ class _PlanningScreenState extends State<PlanningScreen> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E2A),
+                color: const Color(0xFFF5F5F5),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(Icons.today, color: Colors.white, size: 20),
+              child: const Icon(Icons.today, color: Color(0xFF1A1A2E), size: 20),
             ),
             onPressed: () => setState(() => _selectedDay = DateTime.now().day),
           ),
@@ -130,7 +130,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
               child: Column(
                 children: [
                   Container(
-                    color: const Color(0xFF12121A),
+                    color: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
                       vertical: 12,
@@ -141,14 +141,14 @@ class _PlanningScreenState extends State<PlanningScreen> {
                         IconButton(
                           icon: const Icon(
                             Icons.chevron_left,
-                            color: Colors.white,
+                            color: Color(0xFF1A1A2E),
                           ),
                           onPressed: () {},
                         ),
                         Text(
                           _formatMonthYear(),
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF1A1A2E),
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
@@ -156,7 +156,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
                         IconButton(
                           icon: const Icon(
                             Icons.chevron_right,
-                            color: Colors.white,
+                            color: Color(0xFF1A1A2E),
                           ),
                           onPressed: () {},
                         ),
@@ -164,7 +164,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
                     ),
                   ),
                   Container(
-                    color: const Color(0xFF12121A),
+                    color: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
                       vertical: 8,
@@ -196,8 +196,8 @@ class _PlanningScreenState extends State<PlanningScreen> {
                                     color: isSelected
                                         ? Colors.white
                                         : isActif
-                                            ? Colors.white70
-                                            : Colors.white60,
+                                            ? Colors.grey.shade600
+                                            : Colors.grey.shade400,
                                     fontSize: 12,
                                     fontWeight: FontWeight.w500,
                                   ),
@@ -221,8 +221,8 @@ class _PlanningScreenState extends State<PlanningScreen> {
                                             : isToday
                                                 ? const Color(0xFFFF4433)
                                                 : isActif
-                                                    ? Colors.white
-                                                    : Colors.white60,
+                                                    ? const Color(0xFF1A1A2E)
+                                                    : Colors.grey.shade400,
                                         fontSize: 16,
                                         fontWeight: isToday || isSelected
                                             ? FontWeight.bold
@@ -260,13 +260,13 @@ class _PlanningScreenState extends State<PlanningScreen> {
                                 Icon(
                                   Icons.event_busy,
                                   size: 60,
-                                  color: Color(0xFF1E1E2A),
+                                  color: Colors.grey.shade300,
                                 ),
                                 const SizedBox(height: 16),
                                 Text(
                                   'Aucun événement ce jour',
                                   style: TextStyle(
-                                    color: Colors.white60,
+                                    color: Colors.grey.shade500,
                                     fontSize: 16,
                                   ),
                                 ),
@@ -354,7 +354,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
               Text(
                 event['heure']?.toString() ?? '--:--',
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: Color(0xFF1A1A2E),
                   fontWeight: FontWeight.bold,
                   fontSize: 14,
                 ),
@@ -362,7 +362,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
               const SizedBox(height: 4),
               Text(
                 event['fin']?.toString() ?? '--:--',
-                style: TextStyle(color: Colors.white60, fontSize: 12),
+                style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
               ),
             ],
           ),
@@ -389,11 +389,12 @@ class _PlanningScreenState extends State<PlanningScreen> {
             child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF12121A),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: typeColor.withOpacity(0.3)),
+                border: Border.all(color: typeColor.withOpacity(0.2)),
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.3),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
                     blurRadius: 10,
                     offset: const Offset(0, 2),
                   ),
@@ -417,7 +418,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
                         child: Text(
                           event['titre']?.toString() ?? 'Sans titre',
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Color(0xFF1A1A2E),
                             fontWeight: FontWeight.bold,
                             fontSize: 15,
                           ),
@@ -457,11 +458,11 @@ class _PlanningScreenState extends State<PlanningScreen> {
   Widget _buildEventInfoRow(IconData icon, String text) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: Colors.white60),
+        Icon(icon, size: 14, color: Colors.grey.shade500),
         const SizedBox(width: 6),
         Text(
           text,
-          style: TextStyle(color: Colors.white70, fontSize: 13),
+          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
         ),
       ],
     );

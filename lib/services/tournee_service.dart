@@ -226,4 +226,18 @@ class TourneeService {
       return {'success': false, 'message': e.toString()};
     }
   }
+
+
+  /// GET /api/tournees?date_filter=upcoming|past|today
+  Future<Map<String, dynamic>> getTourneesParFiltre(String dateFilter) async {
+    try {
+      final response = await _apiService.get('/api/tournees', queryParameters: {'date_filter': dateFilter});
+      if (response.statusCode == 200) {
+        return {'success': true, 'data': response.data};
+      }
+      return {'success': false, 'message': 'Erreur HTTP ${response.statusCode}'};
+    } catch (e) {
+      return {'success': false, 'message': e.toString()};
+    }
+  }
 }

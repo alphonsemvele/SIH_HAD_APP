@@ -89,18 +89,18 @@ class _RapportsScreenState extends State<RapportsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: const Color(0xFF12121A),
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF1A1A2E)),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Rapports',
           style: TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -109,12 +109,12 @@ class _RapportsScreenState extends State<RapportsScreen>
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E1E2A),
+                color: const Color(0xFFF5F5F5),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: const Icon(
                 Icons.filter_list,
-                color: Colors.white,
+                color: Color(0xFF1A1A2E),
                 size: 20,
               ),
             ),
@@ -127,7 +127,7 @@ class _RapportsScreenState extends State<RapportsScreen>
           child: Container(
             margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2A),
+              color: const Color(0xFFF5F5F5),
               borderRadius: BorderRadius.circular(12),
             ),
             child: TabBar(
@@ -139,7 +139,7 @@ class _RapportsScreenState extends State<RapportsScreen>
               indicatorSize: TabBarIndicatorSize.tab,
               dividerColor: Colors.transparent,
               labelColor: Colors.white,
-              unselectedLabelColor: Colors.white,
+              unselectedLabelColor: const Color(0xFF1A1A2E),
               labelStyle: const TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 13,
@@ -159,17 +159,18 @@ class _RapportsScreenState extends State<RapportsScreen>
             )
           : RefreshIndicator(
               onRefresh: _refreshRapports,
-              color: Colors.white,
+              color: const Color(0xFF1A1A2E),
               child: Column(
                 children: [
                   Container(
                     margin: const EdgeInsets.all(16),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF12121A),
+                      color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withOpacity(0.3),
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.03),
                           blurRadius: 10,
                           offset: const Offset(0, 2),
                         ),
@@ -186,7 +187,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                         Container(
                           width: 1,
                           height: 40,
-                          color: Color(0xFF1E1E2A),
+                          color: Colors.grey.shade200,
                         ),
                         _buildStatItem(
                           'Complétés',
@@ -196,7 +197,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                         Container(
                           width: 1,
                           height: 40,
-                          color: Color(0xFF1E1E2A),
+                          color: Colors.grey.shade200,
                         ),
                         _buildStatItem(
                           'En cours',
@@ -243,14 +244,14 @@ class _RapportsScreenState extends State<RapportsScreen>
         Text(
           value,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontSize: 22,
             fontWeight: FontWeight.bold,
           ),
         ),
         Text(
           label,
-          style: TextStyle(color: Colors.white60, fontSize: 12),
+          style: TextStyle(color: Colors.grey.shade500, fontSize: 12),
         ),
       ],
     );
@@ -262,11 +263,11 @@ class _RapportsScreenState extends State<RapportsScreen>
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.description_outlined, size: 60, color: Color(0xFF1E1E2A)),
+            Icon(Icons.description_outlined, size: 60, color: Colors.grey.shade300),
             const SizedBox(height: 16),
             Text(
               'Aucun rapport',
-              style: TextStyle(color: Colors.white60, fontSize: 16),
+              style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
             ),
           ],
         ),
@@ -312,11 +313,11 @@ class _RapportsScreenState extends State<RapportsScreen>
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF12121A),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF1E1E2A)),
           boxShadow: [
-            BoxShadow(color: Colors.black.withOpacity(0.3),
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
               blurRadius: 10,
               offset: const Offset(0, 2),
             ),
@@ -341,7 +342,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                   Text(
                     rapport['titre'] ?? '',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF1A1A2E),
                       fontWeight: FontWeight.w600,
                       fontSize: 14,
                     ),
@@ -354,13 +355,13 @@ class _RapportsScreenState extends State<RapportsScreen>
                       Icon(
                         Icons.calendar_today,
                         size: 12,
-                        color: Colors.white60,
+                        color: Colors.grey.shade500,
                       ),
                       const SizedBox(width: 4),
                       Text(
                         '${rapport['date']} à ${rapport['heure']}',
                         style: TextStyle(
-                          color: Colors.white60,
+                          color: Colors.grey.shade500,
                           fontSize: 12,
                         ),
                       ),
@@ -397,7 +398,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                 IconButton(
                   icon: Icon(
                     Icons.download,
-                    color: Colors.white60,
+                    color: Colors.grey.shade400,
                     size: 20,
                   ),
                   onPressed: () {},
@@ -408,7 +409,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                 IconButton(
                   icon: Icon(
                     Icons.share,
-                    color: Colors.white60,
+                    color: Colors.grey.shade400,
                     size: 20,
                   ),
                   onPressed: () {},
@@ -431,7 +432,7 @@ class _RapportsScreenState extends State<RapportsScreen>
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.85,
         decoration: const BoxDecoration(
-          color: const Color(0xFF12121A),
+          color: Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -444,7 +445,7 @@ class _RapportsScreenState extends State<RapportsScreen>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Color(0xFF1E1E2A),
+                color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -458,7 +459,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                        color: Color(0xFF1A1A2E),
                       ),
                     ),
                   ),
@@ -496,9 +497,10 @@ class _RapportsScreenState extends State<RapportsScreen>
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF12121A),
+                color: Colors.white,
                 boxShadow: [
-                  BoxShadow(color: Colors.black.withOpacity(0.3),
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.05),
                     blurRadius: 10,
                     offset: const Offset(0, -2),
                   ),
@@ -562,14 +564,14 @@ class _RapportsScreenState extends State<RapportsScreen>
             width: 120,
             child: Text(
               label,
-              style: TextStyle(color: Colors.white70, fontSize: 14),
+              style: TextStyle(color: Colors.grey.shade600, fontSize: 14),
             ),
           ),
           Expanded(
             child: Text(
               value,
               style: const TextStyle(
-                color: Colors.white,
+                color: Color(0xFF1A1A2E),
                 fontWeight: FontWeight.w600,
                 fontSize: 14,
               ),
@@ -588,7 +590,7 @@ class _RapportsScreenState extends State<RapportsScreen>
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
         decoration: const BoxDecoration(
-          color: const Color(0xFF12121A),
+          color: Colors.white,
           borderRadius: BorderRadius.only(
             topLeft: Radius.circular(24),
             topRight: Radius.circular(24),
@@ -601,7 +603,7 @@ class _RapportsScreenState extends State<RapportsScreen>
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: Color(0xFF1E1E2A),
+                color: Colors.grey.shade300,
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -612,7 +614,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
-                  color: Colors.white,
+                  color: Color(0xFF1A1A2E),
                 ),
               ),
             ),
@@ -665,9 +667,9 @@ class _RapportsScreenState extends State<RapportsScreen>
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: const Color(0xFF12121A),
+          color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF1E1E2A)),
+          border: Border.all(color: Colors.grey.shade200),
         ),
         child: Row(
           children: [
@@ -688,7 +690,7 @@ class _RapportsScreenState extends State<RapportsScreen>
                   Text(
                     title,
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: Color(0xFF1A1A2E),
                       fontWeight: FontWeight.w600,
                       fontSize: 15,
                     ),
@@ -696,12 +698,12 @@ class _RapportsScreenState extends State<RapportsScreen>
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: TextStyle(color: Colors.white60, fontSize: 13),
+                    style: TextStyle(color: Colors.grey.shade500, fontSize: 13),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right, color: Colors.white60),
+            Icon(Icons.chevron_right, color: Colors.grey.shade400),
           ],
         ),
       ),

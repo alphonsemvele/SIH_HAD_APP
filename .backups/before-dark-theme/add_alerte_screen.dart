@@ -1,84 +1,66 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 
-class AddPlanningScreen extends StatefulWidget {
-  const AddPlanningScreen({super.key});
+class AddAlerteScreen extends StatefulWidget {
+  const AddAlerteScreen({super.key});
 
   @override
-  State<AddPlanningScreen> createState() => _AddPlanningScreenState();
+  State<AddAlerteScreen> createState() => _AddAlerteScreenState();
 }
 
-class _AddPlanningScreenState extends State<AddPlanningScreen> {
+class _AddAlerteScreenState extends State<AddAlerteScreen> {
   final ApiService _apiService = ApiService();
   final _formKey = GlobalKey<FormState>();
-  final _titreController = TextEditingController();
-  final _descriptionController = TextEditingController();
-  final _lieuController = TextEditingController();
-  final _heureDebutController = TextEditingController();
-  final _heureFinController = TextEditingController();
-  final _dateController = TextEditingController();
+  final _patientController = TextEditingController();
+  final _diagnosticController = TextEditingController();
+  final _alerteController = TextEditingController();
+  final _quartierController = TextEditingController();
+  final _telephoneController = TextEditingController();
+  final _ageController = TextEditingController();
   
-  String _selectedType = 'tournee';
-  String _selectedSecteur = 'Bastos';
+  String _selectedNiveau = 'Urgent';
   bool _isLoading = false;
 
-  final List<String> _types = [
-    'tournee',
-    'reunion',
-    'formation',
-    'urgence',
-    'consultation',
-    'autre',
-  ];
-
-  final List<String> _secteurs = [
-    'Bastos',
-    'Nlongkak',
-    'Messa',
-    'Mokolo',
-    'Omnisport',
-    'Essos',
-    'Ngousso',
-    'Tsinga',
+  final List<String> _niveaux = [
+    'Critique',
+    'Urgent',
+    'Moyen',
+    'Faible',
   ];
 
   @override
   void dispose() {
-    _titreController.dispose();
-    _descriptionController.dispose();
-    _lieuController.dispose();
-    _heureDebutController.dispose();
-    _heureFinController.dispose();
-    _dateController.dispose();
+    _patientController.dispose();
+    _diagnosticController.dispose();
+    _alerteController.dispose();
+    _quartierController.dispose();
+    _telephoneController.dispose();
+    _ageController.dispose();
     super.dispose();
   }
 
-  Future<void> _createPlanning() async {
+  Future<void> _createAlerte() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
 
     try {
-      final planningData = {
-        'titre': _titreController.text,
-        'description': _descriptionController.text,
-        'type': _selectedType,
-        'date': _dateController.text,
-        'heure_debut': _heureDebutController.text,
-        'heure_fin': _heureFinController.text,
+      final alerteData = {
+        'patient_nom': _patientController.text,
+        'diagnostic': _diagnosticController.text,
+        'alerte': _alerteController.text,
+        'quartier': _quartierController.text,
+        'telephone': _telephoneController.text,
+        'age': int.parse(_ageController.text),
+        'niveau': _selectedNiveau,
+        'date': DateTime.now().toIso8601String().split('T')[0],
+        'heure': DateTime.now().toIso8601String().split('T')[1].substring(0, 5),
       };
 
-      // Ajouter les champs spécifiques selon le type
-      if (_selectedType == 'tournee') {
-        planningData['secteur'] = _selectedSecteur;
-      } else if (_selectedType == 'reunion' || _selectedType == 'formation') {
-        planningData['lieu'] = _lieuController.text;
-      }
-
-      final response = await _apiService.post('/api/planning', data: planningData);
+      final response = await _apiService.post('/api/alertes', data: alerteData);
       
       if (response.statusCode == 201 || response.statusCode == 200) {
-        _showSuccessSnackBar('Événement créé avec succès');
+        _showSuccessSnackBar('Alerte créée avec succès');
         Navigator.pop(context, true);
       } else if (response.statusCode == 422) {
         // Erreur de validation
@@ -121,7 +103,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A0F),
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF4433),
         elevation: 0,
@@ -130,12 +112,12 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
-          'Nouveau Planning',
+          'Nouvelle Alerte',
           style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
         ),
         actions: [
           TextButton(
-            onPressed: _isLoading ? null : _createPlanning,
+            onPressed: _isLoading ? null : _createAlerte,
             child: _isLoading
                 ? const SizedBox(
                     width: 20,
@@ -162,7 +144,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Informations générales
+              // Informations patient
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -170,7 +152,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -180,46 +162,114 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Informations générales',
+                      'Informations Patient',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF1A1A2E),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTextField(
+                            controller: _patientController,
+                            label: 'Nom du patient',
+                            hint: 'Ex: Jean Dupont',
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Veuillez entrer le nom du patient';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        SizedBox(
+                          width: 100,
+                          child: _buildTextField(
+                            controller: _ageController,
+                            label: 'Âge',
+                            hint: '45',
+                            keyboardType: TextInputType.number,
+                            validator: (value) {
+                              if (value == null || value.isEmpty) {
+                                return 'Âge requis';
+                              }
+                              final age = int.tryParse(value);
+                              if (age == null || age <= 0) {
+                                return 'Âge invalide';
+                              }
+                              return null;
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      controller: _diagnosticController,
+                      label: 'Diagnostic',
+                      hint: 'Ex: Diabète type 2',
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez entrer un diagnostic';
+                        }
+                        return null;
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Alerte
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Alerte',
+                      style: TextStyle(
+                        color: Color(0xFF1A1A2E),
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 20),
                     _buildTextField(
-                      controller: _titreController,
-                      label: 'Titre de l\'événement',
-                      hint: 'Ex: Tournée du Matin',
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Veuillez entrer un titre';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-                    _buildTextField(
-                      controller: _descriptionController,
-                      label: 'Description',
-                      hint: 'Ex: Visite des patients du secteur...',
+                      controller: _alerteController,
+                      label: 'Description de l\'alerte',
+                      hint: 'Ex: Glycémie critique: 2.8 g/L',
                       maxLines: 3,
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Veuillez entrer une description';
+                          return 'Veuillez décrire l\'alerte';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
                     _buildDropdownField(
-                      label: 'Type d\'événement',
-                      value: _selectedType,
-                      items: _types,
+                      label: 'Niveau d\'urgence',
+                      value: _selectedNiveau,
+                      items: _niveaux,
                       onChanged: (value) {
                         setState(() {
-                          _selectedType = value!;
+                          _selectedNiveau = value!;
                         });
                       },
                     ),
@@ -228,7 +278,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
               ),
               const SizedBox(height: 20),
 
-              // Planning
+              // Localisation
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
@@ -236,7 +286,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.white.withOpacity(0.05),
+                      color: Colors.black.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -246,145 +296,41 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Planning',
+                      'Localisation',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: Color(0xFF1A1A2E),
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 20),
                     _buildTextField(
-                      controller: _dateController,
-                      label: 'Date',
-                      hint: '2026-04-27',
+                      controller: _quartierController,
+                      label: 'Quartier',
+                      hint: 'Ex: Bastos',
                       validator: (value) {
                         if (value == null || value.isEmpty) {
-                          return 'Veuillez entrer une date';
+                          return 'Veuillez entrer le quartier';
                         }
                         return null;
                       },
                     ),
                     const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _heureDebutController,
-                            label: 'Heure de début',
-                            hint: '08:00',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Heure requise';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: _buildTextField(
-                            controller: _heureFinController,
-                            label: 'Heure de fin',
-                            hint: '12:00',
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Heure requise';
-                              }
-                              return null;
-                            },
-                          ),
-                        ),
-                      ],
+                    _buildTextField(
+                      controller: _telephoneController,
+                      label: 'Téléphone',
+                      hint: 'Ex: +237 690 123 456',
+                      keyboardType: TextInputType.phone,
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Veuillez entrer le téléphone';
+                        }
+                        return null;
+                      },
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
-
-              // Champs spécifiques selon le type
-              if (_selectedType == 'tournee') ...[
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Détails de la tournée',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildDropdownField(
-                        label: 'Secteur',
-                        value: _selectedSecteur,
-                        items: _secteurs,
-                        onChanged: (value) {
-                          setState(() {
-                            _selectedSecteur = value!;
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ] else if (_selectedType == 'reunion' || _selectedType == 'formation') ...[
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.white.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Lieu',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildTextField(
-                        controller: _lieuController,
-                        label: 'Lieu',
-                        hint: 'Ex: Salle 204, Amphi B',
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Veuillez entrer un lieu';
-                          }
-                          return null;
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 20),
-              ],
               const SizedBox(height: 40),
             ],
           ),
@@ -407,7 +353,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -417,19 +363,19 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: const TextStyle(color: Colors.white),
+          style: const TextStyle(color: Color(0xFF1A1A2E)),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.white60),
+            hintStyle: TextStyle(color: Colors.grey.shade400),
             filled: true,
-            fillColor: const Color(0xFF1E1E2A),
+            fillColor: const Color(0xFFF5F5F5),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Color(0xFF1E1E2A)),
+              borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Color(0xFF1E1E2A)),
+              borderSide: BorderSide(color: Colors.grey.shade300),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -459,7 +405,7 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white,
+            color: Color(0xFF1A1A2E),
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -469,14 +415,14 @@ class _AddPlanningScreenState extends State<AddPlanningScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E2A),
+            color: const Color(0xFFF5F5F5),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Color(0xFF1E1E2A)),
+            border: Border.all(color: Colors.grey.shade300),
           ),
           child: DropdownButton<String>(
             value: value,
             dropdownColor: Colors.white,
-            style: const TextStyle(color: Colors.white),
+            style: const TextStyle(color: Color(0xFF1A1A2E)),
             isExpanded: true,
             underline: Container(),
             items: items.map((String item) {

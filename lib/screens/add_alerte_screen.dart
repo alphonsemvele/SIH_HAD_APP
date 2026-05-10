@@ -103,7 +103,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA),
+      backgroundColor: const Color(0xFF0A0A0F),
       appBar: AppBar(
         backgroundColor: const Color(0xFFFF4433),
         elevation: 0,
@@ -152,7 +152,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.white.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -164,7 +164,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                     const Text(
                       'Informations Patient',
                       style: TextStyle(
-                        color: Color(0xFF1A1A2E),
+                        color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -232,7 +232,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.white.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -244,7 +244,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                     const Text(
                       'Alerte',
                       style: TextStyle(
-                        color: Color(0xFF1A1A2E),
+                        color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -286,7 +286,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.white.withOpacity(0.05),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -298,7 +298,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                     const Text(
                       'Localisation',
                       style: TextStyle(
-                        color: Color(0xFF1A1A2E),
+                        color: Colors.white,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
@@ -353,7 +353,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF1A1A2E),
+            color: Colors.white,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -363,19 +363,19 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
           controller: controller,
           keyboardType: keyboardType,
           maxLines: maxLines,
-          style: const TextStyle(color: Color(0xFF1A1A2E)),
+          style: const TextStyle(color: Colors.white),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: TextStyle(color: Colors.grey.shade400),
+            hintStyle: TextStyle(color: Colors.white60),
             filled: true,
-            fillColor: const Color(0xFFF5F5F5),
+            fillColor: const Color(0xFF1E1E2A),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: Color(0xFF1E1E2A)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: Colors.grey.shade300),
+              borderSide: BorderSide(color: Color(0xFF1E1E2A)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -405,7 +405,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: Color(0xFF1A1A2E),
+            color: Colors.white,
             fontSize: 14,
             fontWeight: FontWeight.w500,
           ),
@@ -415,14 +415,14 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           decoration: BoxDecoration(
-            color: const Color(0xFFF5F5F5),
+            color: const Color(0xFF1E1E2A),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade300),
+            border: Border.all(color: Color(0xFF1E1E2A)),
           ),
           child: DropdownButton<String>(
             value: value,
             dropdownColor: Colors.white,
-            style: const TextStyle(color: Color(0xFF1A1A2E)),
+            style: const TextStyle(color: Colors.white),
             isExpanded: true,
             underline: Container(),
             items: items.map((String item) {

@@ -8,8 +8,6 @@ import 'urgences_screen.dart';
 import 'planning_screen.dart';
 import 'messagerie_screen.dart';
 import 'rapports_screen.dart';
-import '../services/auth_service.dart';
-import '../services/alerte_service.dart';
 
 class MainLayout extends StatefulWidget {
   const MainLayout({super.key});
@@ -21,56 +19,6 @@ class MainLayout extends StatefulWidget {
 class _MainLayoutState extends State<MainLayout> {
   int _currentIndex = 0;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final AuthService _authService = AuthService();
-  final AlerteService _alerteService = AlerteService();
-  Map<String, dynamic>? _user;
-  int _nbAlertes = 0;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadUser();
-  }
-
-  Future<void> _loadUser() async {
-    final u = await _authService.getMe();
-    if (mounted && u != null) setState(() => _user = u);
-    _loadAlertesCount();
-  }
-
-  Future<void> _loadAlertesCount() async {
-    final res = await _alerteService.getAlertes();
-    if (res['success'] == true && mounted) {
-      final raw = res['data'];
-      final list = raw is List ? raw : (raw is Map && raw['data'] is List ? raw['data'] : []);
-      setState(() => _nbAlertes = list.length);
-    }
-  }
-
-  String _userInitials() {
-    final name = _user?['name']?.toString() ?? '';
-    if (name.trim().isEmpty) return '?';
-    final parts = name.trim().split(RegExp(r'\s+'));
-    if (parts.length == 1) return parts[0].substring(0, 1).toUpperCase();
-    return (parts[0].substring(0, 1) + parts.last.substring(0, 1)).toUpperCase();
-  }
-
-  String _userFonction() {
-    final f = _user?['fonction']?.toString() ?? '';
-    return switch (f) {
-      'medecin' => 'Médecin',
-      'infirmier' => 'Infirmier(ère) HAD',
-      'sage_femme' => 'Sage-femme',
-      'pharmacien' => 'Pharmacien(ne)',
-      'technicien' => 'Technicien(ne)',
-      'laborantin' => 'Laborantin(e)',
-      'administratif' => 'Administratif',
-      'receptionniste' => 'Réceptionniste',
-      'comptable' => 'Comptable',
-      _ => f.isNotEmpty ? f : 'Soignant(e) HAD',
-    };
-  }
-
 
   final List<Widget> _screens = [
     const HomeScreen(),
@@ -85,16 +33,16 @@ class _MainLayoutState extends State<MainLayout> {
     return Scaffold(
       key: _scaffoldKey,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF12121A),
+        backgroundColor: Colors.white,
         elevation: 0,
         leading: IconButton(
           icon: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: const Color(0xFF1E1E2A),
+              color: const Color(0xFFF5F5F5),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.menu, color: Colors.white, size: 20),
+            child: const Icon(Icons.menu, color: Color(0xFF1A1A2E), size: 20),
           ),
           onPressed: () => _scaffoldKey.currentState?.openDrawer(),
         ),
@@ -118,37 +66,26 @@ class _MainLayoutState extends State<MainLayout> {
                 Container(
                   padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1E1E2A),
+                    color: const Color(0xFFF5F5F5),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.notifications_outlined, color: Colors.white, size: 20),
+                  child: const Icon(Icons.notifications_outlined, color: Color(0xFF1A1A2E), size: 20),
                 ),
-                if (_nbAlertes > 0) Positioned(
-                  right: 4,
-                  top: 4,
+                Positioned(
+                  right: 6,
+                  top: 6,
                   child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                    constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                    width: 10,
+                    height: 10,
                     decoration: const BoxDecoration(
                       color: Color(0xFFFF4433),
                       shape: BoxShape.circle,
-                    ),
-                    child: Center(
-                      child: Text(
-                        '$_nbAlertes',
-                        style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                      ),
                     ),
                   ),
                 ),
               ],
             ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const UrgencesScreen()),
-              ).then((_) => _loadAlertesCount());
-            },
+            onPressed: () {},
           ),
           const SizedBox(width: 8),
         ],
@@ -157,13 +94,10 @@ class _MainLayoutState extends State<MainLayout> {
       body: _screens[_currentIndex],
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF12121A),
-          border: const Border(
-            top: BorderSide(color: Color(0xFF1E1E2A), width: 1),
-          ),
+          color: Colors.white,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.5),
+              color: Colors.black.withOpacity(0.05),
               blurRadius: 10,
               offset: const Offset(0, -5),
             ),
@@ -190,7 +124,7 @@ class _MainLayoutState extends State<MainLayout> {
 
   Widget _buildDrawer() {
     return Drawer(
-      backgroundColor: const Color(0xFF12121A),
+      backgroundColor: Colors.white,
       child: SafeArea(
         child: Column(
           children: [
@@ -211,10 +145,10 @@ class _MainLayoutState extends State<MainLayout> {
                       ),
                       borderRadius: BorderRadius.circular(15),
                     ),
-                    child: Center(
+                    child: const Center(
                       child: Text(
-                        _userInitials(),
-                        style: const TextStyle(
+                        'AN',
+                        style: TextStyle(
                           color: Colors.white,
                           fontSize: 22,
                           fontWeight: FontWeight.bold,
@@ -227,19 +161,19 @@ class _MainLayoutState extends State<MainLayout> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          _user?['name']?.toString() ?? 'Chargement...',
-                          style: const TextStyle(
-                            color: Colors.white,
+                        const Text(
+                          'Anne Ngo Likeng',
+                          style: TextStyle(
+                            color: Color(0xFF1A1A2E),
                             fontSize: 16,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          _userFonction(),
+                          'Infirmière HAD',
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
+                            color: const Color(0xFF1A1A2E).withOpacity(0.5),
                             fontSize: 13,
                           ),
                         ),
@@ -247,7 +181,7 @@ class _MainLayoutState extends State<MainLayout> {
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white),
+                    icon: const Icon(Icons.close, color: Color(0xFF1A1A2E)),
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
@@ -315,7 +249,7 @@ class _MainLayoutState extends State<MainLayout> {
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 border: Border(
-                  top: BorderSide(color: Color(0xFF1E1E2A)),
+                  top: BorderSide(color: Colors.grey.shade200),
                 ),
               ),
               child: Row(
@@ -325,7 +259,7 @@ class _MainLayoutState extends State<MainLayout> {
                   Text(
                     'Hôpital Central de Yaoundé',
                     style: TextStyle(
-                      color: Colors.white70,
+                      color: Colors.grey.shade600,
                       fontSize: 12,
                     ),
                   ),
@@ -344,7 +278,7 @@ class _MainLayoutState extends State<MainLayout> {
       child: Text(
         title,
         style: TextStyle(
-          color: Colors.white60,
+          color: Colors.grey.shade500,
           fontSize: 11,
           fontWeight: FontWeight.w600,
           letterSpacing: 1,
@@ -358,15 +292,15 @@ class _MainLayoutState extends State<MainLayout> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E1E2A),
+          color: const Color(0xFFF5F5F5),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: Colors.white, size: 20),
+        child: Icon(icon, color: const Color(0xFF1A1A2E), size: 20),
       ),
       title: Text(
         title,
         style: const TextStyle(
-          color: Colors.white,
+          color: Color(0xFF1A1A2E),
           fontSize: 14,
           fontWeight: FontWeight.w500,
         ),
@@ -375,7 +309,7 @@ class _MainLayoutState extends State<MainLayout> {
           ? Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: badgeColor?.withOpacity(0.15) ?? Color(0xFF1E1E2A),
+                color: badgeColor?.withOpacity(0.15) ?? Colors.grey.shade200,
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Text(
@@ -410,14 +344,14 @@ class _MainLayoutState extends State<MainLayout> {
           children: [
             Icon(
               icon,
-              color: isSelected ? const Color(0xFFFF4433) : Colors.white60,
+              color: isSelected ? const Color(0xFFFF4433) : Colors.grey.shade400,
               size: 24,
             ),
             const SizedBox(height: 4),
             Text(
               label,
               style: TextStyle(
-                color: isSelected ? const Color(0xFFFF4433) : Colors.white60,
+                color: isSelected ? const Color(0xFFFF4433) : Colors.grey.shade400,
                 fontSize: 11,
                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
               ),
