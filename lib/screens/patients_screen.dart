@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'patient_detail_screen.dart';
 import 'add_patient_screen.dart';
 import '../services/patient_service.dart';
@@ -594,7 +595,7 @@ class _PatientsScreenState extends State<PatientsScreen> {
                 Row(
                   children: [
                     GestureDetector(
-                      onTap: () {},
+                      onTap: () => _callPatient(patient),
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
@@ -615,4 +616,28 @@ class _PatientsScreenState extends State<PatientsScreen> {
       ),
     );
   }
+
+  Future<void> _callPatient(Map<String, dynamic> patient) async {
+    final tel = (patient['telephone']?.toString() ?? '').replaceAll(' ', '');
+    if (tel.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun numéro renseigné'),
+          backgroundColor: Color(0xFFFF4433),
+        ),
+      );
+      return;
+    }
+    final uri = Uri.parse('tel:$tel');
+    try {
+      await launchUrl(uri);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur appel: $e'), backgroundColor: const Color(0xFFFF4433)),
+        );
+      }
+    }
+  }
+
 }

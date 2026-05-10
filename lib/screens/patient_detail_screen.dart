@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'saisie_constantes_screen.dart';
 
 class PatientDetailScreen extends StatelessWidget {
@@ -27,6 +28,14 @@ class PatientDetailScreen extends StatelessWidget {
   }
 
   int _age() {
+    // Fallback: si l'age est deja calcule cote liste (patients_screen)
+    final ageDirect = patient?['age'];
+    if (ageDirect is int && ageDirect > 0) return ageDirect;
+    if (ageDirect is String) {
+      final n = int.tryParse(ageDirect.replaceAll(RegExp(r'[^0-9]'), ''));
+      if (n != null && n > 0) return n;
+    }
+
     if (patient?['date_naissance'] == null) return 0;
     try {
       final dob = DateTime.parse(patient!['date_naissance'].toString());
@@ -49,13 +58,14 @@ class PatientDetailScreen extends StatelessWidget {
   }
 
   String _diagnostic() {
-    // Concaténer antécédents médicaux + diagnostic explicite si présent
+    // Priorité: diagnostic direct (mappe par patients_screen) -> antecedents -> default
+    final diag = patient?['diagnostic']?.toString();
+    if (diag != null && diag.isNotEmpty && diag != 'Pas de diagnostic') return diag;
+
     final antc = patient?['antecedents_medicaux'];
     if (antc is List && antc.isNotEmpty) {
       return antc.take(2).join(' • ');
     }
-    final diag = patient?['diagnostic']?.toString();
-    if (diag != null && diag.isNotEmpty) return diag;
     return 'Suivi médical';
   }
 
@@ -124,15 +134,7 @@ class PatientDetailScreen extends StatelessWidget {
                     ),
                     child: const Icon(Icons.phone, color: Color(0xFF4CAF50), size: 20),
                   ),
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Appel : ${_telephone()}'),
-                        backgroundColor: const Color(0xFF4CAF50),
-                        duration: const Duration(seconds: 2),
-                      ),
-                    );
-                  },
+                  onPressed: () => _appelerPatient(context),
                 ),
               const SizedBox(width: 8),
             ],
@@ -442,4 +444,39 @@ class PatientDetailScreen extends StatelessWidget {
       ),
     );
   }
+
+  Future<void> _appelerPatient(BuildContext context) async {
+    final tel = _telephone().replaceAll(' ', '');
+    if (tel.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Aucun numéro renseigné'),
+          backgroundColor: Color(0xFFFF4433),
+        ),
+      );
+      return;
+    }
+    final uri = Uri.parse('tel:$tel');
+    try {
+      final ok = await launchUrl(uri);
+      if (!ok && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Appel impossible: $tel'),
+            backgroundColor: const Color(0xFFFF4433),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur appel: $e'),
+            backgroundColor: const Color(0xFFFF4433),
+          ),
+        );
+      }
+    }
+  }
+
 }

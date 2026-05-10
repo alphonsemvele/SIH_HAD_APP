@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'tournee_detail_screen.dart';
+import 'patient_detail_screen.dart';
 import 'tournees_screen.dart';
 import 'qr_scan_screen.dart';
 import '../services/tournee_service.dart';
@@ -353,7 +354,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPatientCard(Map<String, dynamic> v) {
     final patient = v['patient'] as Map<String, dynamic>? ?? {};
-    final nom = '${patient['nom'] ?? ''} ${patient['prenom'] ?? ''}'.trim();
+    final patientNomComplet = '${patient['nom'] ?? ''} ${patient['prenom'] ?? ''}'.trim();
+    final nom = patientNomComplet;
     final diagnostic = v['diagnostic']?.toString() ?? '';
     final quartier = patient['ville']?.toString() ?? '';
     final priorite = (v['priorite']?.toString() ?? 'normal').replaceFirstMapped(
@@ -367,7 +369,17 @@ class _HomeScreenState extends State<HomeScreen> {
       } catch (_) {}
     }
 
-    return Container(
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PatientDetailScreen(
+            nom: patientNomComplet,
+            patient: patient,
+          ),
+        ),
+      ),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -433,6 +445,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 
@@ -443,7 +456,41 @@ class _HomeScreenState extends State<HomeScreen> {
         : niveau == 'Urgent'
             ? const Color(0xFFFF9800)
             : const Color(0xFF4CAF50);
-    return Container(
+    return GestureDetector(
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: const Color(0xFF12121A),
+            title: Text(
+              a['patient_nom']?.toString() ?? 'Alerte',
+              style: const TextStyle(color: Colors.white),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Niveau : $niveau', style: TextStyle(color: color, fontWeight: FontWeight.bold)),
+                const SizedBox(height: 8),
+                Text('Diagnostic : ${a['diagnostic'] ?? '—'}', style: const TextStyle(color: Colors.white)),
+                const SizedBox(height: 8),
+                Text('Alerte : ${a['alerte'] ?? '—'}', style: const TextStyle(color: Colors.white)),
+                const SizedBox(height: 8),
+                Text('Quartier : ${a['quartier'] ?? '—'}', style: const TextStyle(color: Colors.white70)),
+                const SizedBox(height: 8),
+                Text('Tél : ${a['telephone'] ?? '—'}', style: const TextStyle(color: Colors.white70)),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Fermer', style: TextStyle(color: Color(0xFFFF4433))),
+              ),
+            ],
+          ),
+        );
+      },
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -490,6 +537,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 

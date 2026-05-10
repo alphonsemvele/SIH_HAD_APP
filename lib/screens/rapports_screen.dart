@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../services/rapport_service.dart';
 
 class RapportsScreen extends StatefulWidget {
@@ -900,11 +901,136 @@ class _RapportsScreenState extends State<RapportsScreen>
 
   void _partagerRapport(Map<String, dynamic> rapport) {
     final titre = rapport['titre']?.toString() ?? 'Rapport';
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Partage de "$titre" : SMS / Email / MSSanté'),
-        backgroundColor: const Color(0xFF2196F3),
-        duration: const Duration(seconds: 2),
+    final type = rapport['type']?.toString() ?? '';
+    final patient = rapport['patient']?.toString() ?? '';
+    final date = rapport['date']?.toString() ?? '';
+
+    final body = Uri.encodeComponent(
+      'Bonjour,\n\nVeuillez trouver ci-dessous le rapport HAD :\n\n'
+      '— Titre : $titre\n'
+      '— Type : $type\n'
+      '— Date : $date\n'
+      '${patient.isNotEmpty ? "— Patient : $patient\n" : ""}'
+      '\nCordialement,\nÉquipe HAD - HCY'
+    );
+    final subject = Uri.encodeComponent('[HAD] $titre');
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF12121A),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                margin: const EdgeInsets.symmetric(vertical: 12),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E2A),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text(
+                  'Partager le rapport',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2196F3).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.email, color: Color(0xFF2196F3)),
+                ),
+                title: const Text('Email', style: TextStyle(color: Colors.white)),
+                subtitle: Text(
+                  'Ouvre votre client mail',
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final uri = Uri.parse('mailto:?subject=$subject&body=$body');
+                  try {
+                    await launchUrl(uri);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erreur: $e'), backgroundColor: const Color(0xFFFF4433)),
+                      );
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4CAF50).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.message, color: Color(0xFF4CAF50)),
+                ),
+                title: const Text('SMS', style: TextStyle(color: Colors.white)),
+                subtitle: Text(
+                  'Envoyer par message',
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                ),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final uri = Uri.parse('sms:?body=$body');
+                  try {
+                    await launchUrl(uri);
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Erreur: $e'), backgroundColor: const Color(0xFFFF4433)),
+                      );
+                    }
+                  }
+                },
+              ),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFF4433).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.medical_services, color: Color(0xFFFF4433)),
+                ),
+                title: const Text('MSSanté', style: TextStyle(color: Colors.white)),
+                subtitle: Text(
+                  'Messagerie sécurisée santé (à venir)',
+                  style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('MSSanté - Configuration ANS requise (Phase 4)'),
+                      backgroundColor: Color(0xFFFF4433),
+                      duration: Duration(seconds: 3),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
       ),
     );
   }
