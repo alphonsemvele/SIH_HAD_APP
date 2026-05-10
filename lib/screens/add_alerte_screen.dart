@@ -151,8 +151,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.05),
+                    BoxShadow(color: Colors.black.withOpacity(0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -231,8 +230,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.05),
+                    BoxShadow(color: Colors.black.withOpacity(0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
@@ -285,8 +283,7 @@ class _AddAlerteScreenState extends State<AddAlerteScreen> {
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
-                    BoxShadow(
-                      color: Colors.white.withOpacity(0.05),
+                    BoxShadow(color: Colors.black.withOpacity(0.3),
                       blurRadius: 10,
                       offset: const Offset(0, 4),
                     ),
