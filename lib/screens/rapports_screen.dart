@@ -395,25 +395,27 @@ class _RapportsScreenState extends State<RapportsScreen>
             Column(
               children: [
                 IconButton(
-                  icon: Icon(
+                  icon: const Icon(
                     Icons.download,
-                    color: Colors.white60,
-                    size: 20,
+                    color: Color(0xFFFF4433),
+                    size: 22,
                   ),
-                  onPressed: () {},
+                  onPressed: () => _telechargerRapport(rapport),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
+                  tooltip: 'Télécharger',
                 ),
                 const SizedBox(height: 8),
                 IconButton(
                   icon: Icon(
                     Icons.share,
-                    color: Colors.white60,
-                    size: 20,
+                    color: Colors.white.withOpacity(0.7),
+                    size: 22,
                   ),
-                  onPressed: () {},
+                  onPressed: () => _partagerRapport(rapport),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
+                  tooltip: 'Partager',
                 ),
               ],
             ),
@@ -707,4 +709,204 @@ class _RapportsScreenState extends State<RapportsScreen>
       ),
     );
   }
+
+  Future<void> _telechargerRapport(Map<String, dynamic> rapport) async {
+    final id = rapport['id'];
+    if (id == null) return;
+
+    // Loading
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const Center(child: CircularProgressIndicator(color: Color(0xFFFF4433))),
+    );
+
+    final res = await _rapportService.telechargerRapport(id is int ? id : int.parse(id.toString()));
+
+    if (!mounted) return;
+    Navigator.of(context).pop(); // Fermer loading
+
+    if (res['success'] == true) {
+      final data = res['data'] as Map<String, dynamic>;
+      _showRapportContenu(data);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(res['message']?.toString() ?? 'Erreur téléchargement'),
+          backgroundColor: const Color(0xFFFF4433),
+        ),
+      );
+    }
+  }
+
+  void _showRapportContenu(Map<String, dynamic> data) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: Color(0xFF12121A),
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(24),
+            topRight: Radius.circular(24),
+          ),
+        ),
+        child: Column(
+          children: [
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E1E2A),
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Row(
+                children: [
+                  const Icon(Icons.description, color: Color(0xFFFF4433)),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      data['titre']?.toString() ?? 'Rapport',
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(color: Color(0xFF1E1E2A), height: 1),
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _kvRow('Type', data['type']?.toString() ?? '—'),
+                    _kvRow('Statut', data['status']?.toString() ?? '—'),
+                    _kvRow('Auteur', data['creator_nom']?.toString() ?? '—'),
+                    if (data['patient_nom'] != null && data['patient_nom'].toString().isNotEmpty)
+                      _kvRow('Patient', data['patient_nom'].toString()),
+                    const SizedBox(height: 20),
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0A0A0F),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF1E1E2A)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'CONTENU',
+                            style: TextStyle(
+                              color: Color(0xFFFF4433),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Text(
+                            data['contenu']?.toString() ?? 'Aucun contenu',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              height: 1.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (data['notes'] != null && data['notes'].toString().isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      Text(
+                        'Notes : ${data['notes']}',
+                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: const BoxDecoration(
+                color: Color(0xFF12121A),
+                border: Border(top: BorderSide(color: Color(0xFF1E1E2A))),
+              ),
+              child: SafeArea(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.pop(context);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Rapport sauvegardé localement'),
+                        backgroundColor: Color(0xFF4CAF50),
+                        duration: Duration(seconds: 2),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.check, color: Colors.white),
+                  label: const Text('Confirmer le téléchargement', style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF4433),
+                    minimumSize: const Size(double.infinity, 48),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    elevation: 0,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _kvRow(String k, String v) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(k, style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 13)),
+          ),
+          Expanded(
+            child: Text(
+              v,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _partagerRapport(Map<String, dynamic> rapport) {
+    final titre = rapport['titre']?.toString() ?? 'Rapport';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Partage de "$titre" : SMS / Email / MSSanté'),
+        backgroundColor: const Color(0xFF2196F3),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
 }

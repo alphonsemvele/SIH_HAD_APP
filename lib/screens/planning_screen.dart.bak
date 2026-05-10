@@ -11,30 +11,19 @@ class PlanningScreen extends StatefulWidget {
 
 class _PlanningScreenState extends State<PlanningScreen> {
   final PlanningService _planningService = PlanningService();
-  DateTime _selectedDate = DateTime.now();
-  DateTime _weekStart = _getWeekStart(DateTime.now());
+  int _selectedDay = DateTime.now().day;
   List<Map<String, dynamic>> _planning = [];
   bool _isLoading = true;
 
-  static DateTime _getWeekStart(DateTime d) {
-    // Lundi de la semaine
-    final daysFromMonday = (d.weekday - DateTime.monday) % 7;
-    final monday = DateTime(d.year, d.month, d.day - daysFromMonday);
-    return monday;
-  }
-
-  List<Map<String, dynamic>> _buildJours() {
-    const labels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
-    return List.generate(7, (i) {
-      final d = _weekStart.add(Duration(days: i));
-      return {
-        'jour': labels[i],
-        'date': d.day,
-        'fullDate': d,
-        'actif': true,
-      };
-    });
-  }
+  final List<Map<String, dynamic>> _jours = [
+    {'jour': 'Lun', 'date': 27, 'actif': true},
+    {'jour': 'Mar', 'date': 28, 'actif': true},
+    {'jour': 'Mer', 'date': 29, 'actif': true},
+    {'jour': 'Jeu', 'date': 30, 'actif': true},
+    {'jour': 'Ven', 'date': 31, 'actif': true},
+    {'jour': 'Sam', 'date': 1, 'actif': false},
+    {'jour': 'Dim', 'date': 2, 'actif': false},
+  ];
 
   @override
   void initState() {
@@ -77,29 +66,28 @@ class _PlanningScreenState extends State<PlanningScreen> {
     );
   }
 
-  // Filtre les événements pour la date sélectionnée
-  List<Map<String, dynamic>> _eventsForDate(DateTime target) {
+  // Filtre les événements pour le jour sélectionné
+  List<Map<String, dynamic>> _eventsForDay(int day) {
     return _planning.where((event) {
       final dateStr = event['date']?.toString();
       if (dateStr == null) return false;
       try {
-        final d = DateTime.parse(dateStr);
-        return d.year == target.year && d.month == target.month && d.day == target.day;
+        final date = DateTime.parse(dateStr);
+        return date.day == day;
       } catch (_) {
         return false;
       }
     }).toList();
   }
 
-  bool _hasEventsOnDate(DateTime target) => _eventsForDate(target).isNotEmpty;
-
-  bool _isSameDay(DateTime a, DateTime b) =>
-      a.year == b.year && a.month == b.month && a.day == b.day;
+  // Indique si un jour a au moins un événement
+  bool _hasEventsOnDay(int day) {
+    return _eventsForDay(day).isNotEmpty;
+  }
 
   @override
   Widget build(BuildContext context) {
-    final events = _eventsForDate(_selectedDate);
-    final jours = _buildJours();
+    final events = _eventsForDay(_selectedDay);
 
     return Scaffold(
       backgroundColor: const Color(0xFF0A0A0F),
@@ -127,10 +115,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
               ),
               child: const Icon(Icons.today, color: Colors.white, size: 20),
             ),
-            onPressed: () => setState(() {
-              _selectedDate = DateTime.now();
-              _weekStart = _getWeekStart(_selectedDate);
-            }),
+            onPressed: () => setState(() => _selectedDay = DateTime.now().day),
           ),
           const SizedBox(width: 8),
         ],
@@ -158,9 +143,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
                             Icons.chevron_left,
                             color: Colors.white,
                           ),
-                          onPressed: () => setState(() {
-                            _weekStart = _weekStart.subtract(const Duration(days: 7));
-                          }),
+                          onPressed: () {},
                         ),
                         Text(
                           _formatMonthYear(),
@@ -175,9 +158,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
                             Icons.chevron_right,
                             color: Colors.white,
                           ),
-                          onPressed: () => setState(() {
-                            _weekStart = _weekStart.add(const Duration(days: 7));
-                          }),
+                          onPressed: () {},
                         ),
                       ],
                     ),
@@ -190,15 +171,14 @@ class _PlanningScreenState extends State<PlanningScreen> {
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
-                      children: jours.map((jour) {
-                        final fullDate = jour['fullDate'] as DateTime;
+                      children: _jours.map((jour) {
                         final dayInt = jour['date'] as int;
-                        final isSelected = _isSameDay(fullDate, _selectedDate);
-                        final isToday = _isSameDay(fullDate, DateTime.now());
+                        final isSelected = dayInt == _selectedDay;
+                        final isToday = dayInt == DateTime.now().day;
                         final isActif = jour['actif'] as bool;
 
                         return GestureDetector(
-                          onTap: () => setState(() => _selectedDate = fullDate),
+                          onTap: () => setState(() => _selectedDay = dayInt),
                           child: Container(
                             width: 45,
                             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -252,7 +232,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
                                   ),
                                 ),
                                 const SizedBox(height: 4),
-                                if (_hasEventsOnDate(fullDate))
+                                if (_hasEventsOnDay(dayInt))
                                   Container(
                                     width: 6,
                                     height: 6,
@@ -372,7 +352,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
           Column(
             children: [
               Text(
-                (event['heure_debut'] ?? event['heure'])?.toString() ?? '--:--',
+                event['heure']?.toString() ?? '--:--',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -381,7 +361,7 @@ class _PlanningScreenState extends State<PlanningScreen> {
               ),
               const SizedBox(height: 4),
               Text(
-                (event['heure_fin'] ?? event['fin'])?.toString() ?? '--:--',
+                event['fin']?.toString() ?? '--:--',
                 style: TextStyle(color: Colors.white60, fontSize: 12),
               ),
             ],
