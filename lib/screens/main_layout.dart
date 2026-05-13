@@ -8,6 +8,7 @@ import 'urgences_screen.dart';
 import 'planning_screen.dart';
 import 'messagerie_screen.dart';
 import 'rapports_screen.dart';
+import 'demandes_visite_screen.dart';
 import '../services/auth_service.dart';
 import '../services/alerte_service.dart';
 
@@ -291,6 +292,10 @@ class _MainLayoutState extends State<MainLayout> {
                   _buildDrawerItem(Icons.description_outlined, 'Rapports', () {
                     Navigator.pop(context);
                     Navigator.push(context, MaterialPageRoute(builder: (_) => const RapportsScreen()));
+                  }),
+                  _buildDrawerItem(Icons.home_work_outlined, 'Demandes de visite', () {
+                    Navigator.pop(context);
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const DemandesVisiteScreen()));
                   }),
                   
                   const SizedBox(height: 10),

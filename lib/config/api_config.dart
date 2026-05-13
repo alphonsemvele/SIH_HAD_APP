@@ -1,7 +1,12 @@
 class ApiConfig {
   // Configuration de l'API pour le développement
-  static const String _baseUrl = 'http://172.20.10.2:8000';
-  static const String osrmUrl = 'http://172.20.10.2:5000';
+  // ⚠️ URL PRODUCTION (commentée pour dev local)
+  // static const String _baseUrl = 'https://medicare.allproj.com';
+  // static const String osrmUrl = 'https://medicare.allproj.com';
+
+  // URL DEV LOCAL (PC + emulateur/telephone meme reseau Wi-Fi)
+  static const String _baseUrl = 'http://localhost:8000';
+  static const String osrmUrl = 'http://localhost:5000';
   static const String _apiPrefix = '/api';
   
   // URLs de base pour différents environnements
